@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Trek &amp; Climb Adventure — UI/UX prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14202B; --ink-2:#22323F; --paper:#F5F7F8; --white:#fff;
+  --stone:#E3E8EA; --stone-2:#CFD8DC; --slate:#5A6B76; --slate-2:#8A9AA4;
+  --glacier:#7FA8B8; --glacier-lo:#DCE8ED; --crimson:#AE2C24; --crimson-lo:#F6E7E5;
+  --moss:#4A6A52; --amber:#B07C1E;
+  --d:'Archivo',system-ui,sans-serif; --b:'IBM Plex Sans',system-ui,sans-serif; --m:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#0E1720;font-family:var(--b);color:var(--ink);-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer}
+a{color:inherit}
+img{max-width:100%}
+
+/* ======= PROTOTYPE CHROME ======= */
+.proto{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
+.pnav{background:#0E1720;border-right:1px solid #1E2C37;padding:18px 0 40px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.pnav h1{font-family:var(--d);font-size:14px;font-weight:600;color:#fff;margin:0 18px 2px;letter-spacing:-.01em}
+.pnav .sub{font-size:11px;color:#5D7181;margin:0 18px 18px}
+.pgrp{font-size:10px;letter-spacing:.09em;color:#4E6474;margin:16px 18px 6px;font-weight:600}
+.pnav a{display:block;padding:6px 18px;font-size:12.5px;color:#9DB0BC;text-decoration:none;border-left:2px solid transparent}
+.pnav a:hover{color:#fff;background:#15212B}
+.pnav a.on{color:#fff;border-left-color:var(--crimson);background:#15212B}
+.pbar{position:sticky;top:0;z-index:60;background:#0E1720;border-bottom:1px solid #1E2C37;padding:9px 18px;display:flex;align-items:center;gap:14px}
+.pbar .nm{font-family:var(--d);font-size:12.5px;color:#fff;font-weight:500}
+.pbar .sz{margin-left:auto;display:flex;gap:4px}
+.pbar .sz button{background:#182430;border:1px solid #26343F;color:#93A6B2;font-size:11px;padding:4px 11px;border-radius:4px}
+.pbar .sz button.on{background:var(--crimson);border-color:var(--crimson);color:#fff}
+.stage{padding:22px;display:flex;justify-content:center;background:#0E1720}
+.frame{width:100%;max-width:1240px;background:var(--paper);border-radius:6px;overflow:hidden;box-shadow:0 0 0 1px #1E2C37}
+.frame.mob{max-width:390px}
+.screen{display:none}
+.screen.on{display:block}
+
+/* ======= SITE PRIMITIVES ======= */
+.wrap{max-width:1140px;margin:0 auto;padding:0 30px}
+.frame.mob .wrap{padding:0 18px}
+h2.sec{font-family:var(--d);font-size:26px;font-weight:600;letter-spacing:-.02em;margin:0 0 4px;line-height:1.15}
+.seclead{color:var(--slate);font-size:14px;margin:0 0 22px;max-width:60ch;line-height:1.6}
+.rowhead{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:20px;flex-wrap:wrap}
+.lnk{font-size:13px;color:var(--crimson);text-decoration:none;font-weight:500;border-bottom:1px solid currentColor;padding-bottom:1px}
+.btn{display:inline-block;border:1px solid var(--ink);background:var(--ink);color:#fff;padding:11px 20px;border-radius:3px;font-size:13.5px;font-weight:500;text-decoration:none;text-align:center}
+.btn.pri{background:var(--crimson);border-color:var(--crimson)}
+.btn.gh{background:transparent;color:var(--ink)}
+.btn.wa{background:#1E7A54;border-color:#1E7A54;color:#fff}
+.btn.sm{padding:7px 13px;font-size:12.5px}
+.btn.full{display:block;width:100%}
+.mono{font-family:var(--m);font-variant-numeric:tabular-nums}
+.metre{font-family:var(--m);font-size:12px;color:var(--slate)}
+
+/* header */
+.hd{background:var(--ink);color:#fff}
+.hd .in{max-width:1140px;margin:0 auto;padding:0 30px;height:64px;display:flex;align-items:center;gap:28px}
+.frame.mob .hd .in{padding:0 18px;height:56px}
+.logo{font-family:var(--d);font-weight:700;font-size:16px;letter-spacing:-.02em;line-height:1.05}
+.logo span{display:block;font-family:var(--b);font-weight:400;font-size:9px;color:var(--glacier);letter-spacing:.06em}
+.hd nav{display:flex;gap:20px;margin-left:8px}
+.hd nav a{font-size:13.5px;color:#C6D3DA;text-decoration:none}
+.hd nav a.cur{color:#fff;box-shadow:inset 0 -2px 0 var(--crimson)}
+.hd .rt{margin-left:auto;display:flex;align-items:center;gap:12px}
+.cur-sel{background:#1E2E3A;border:1px solid #2C3E4B;color:#C6D3DA;font-size:12px;padding:5px 9px;border-radius:3px;font-family:var(--m)}
+.burger{display:none;margin-left:auto;background:none;border:0;color:#fff;font-size:20px}
+.frame.mob .hd nav,.frame.mob .hd .rt{display:none}
+.frame.mob .burger{display:block}
+
+/* ridge illustration */
+.ridge{display:block;width:100%;height:100%}
+
+/* hero */
+.hero{position:relative;background:var(--ink);color:#fff;overflow:hidden}
+.hero .art{position:absolute;inset:0;opacity:.55}
+.hero .in{position:relative;max-width:1140px;margin:0 auto;padding:74px 30px 84px}
+.frame.mob .hero .in{padding:44px 18px 54px}
+.hero h1{font-family:var(--d);font-size:52px;line-height:1.02;letter-spacing:-.035em;font-weight:700;margin:0 0 14px;max-width:15ch}
+.frame.mob .hero h1{font-size:32px}
+.hero p{font-size:16px;color:#BCCCD5;max-width:52ch;line-height:1.65;margin:0 0 28px}
+.searchbar{background:#fff;border-radius:4px;padding:7px;display:flex;gap:6px;max-width:620px}
+.searchbar input{flex:1;border:0;padding:11px 12px;font:inherit;font-size:14px;outline:none;color:var(--ink)}
+.searchbar select{border:0;border-left:1px solid var(--stone);padding:0 10px;font:inherit;font-size:13px;color:var(--slate);outline:none;background:#fff}
+.frame.mob .searchbar{flex-direction:column}
+.frame.mob .searchbar select{border-left:0;border-top:1px solid var(--stone);padding:10px}
+
+/* grids */
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.frame.mob .g4,.frame.mob .g3,.frame.mob .g2{grid-template-columns:1fr}
+.pad{padding:52px 0}
+.pad-s{padding:34px 0}
+.frame.mob .pad{padding:34px 0}
+.bg-w{background:#fff}
+.bg-st{background:var(--glacier-lo)}
+
+/* destination card */
+.dcard{position:relative;border-radius:4px;overflow:hidden;background:var(--ink);color:#fff;min-height:230px;display:flex;flex-direction:column;justify-content:flex-end;text-decoration:none}
+.dcard .art{position:absolute;inset:0;opacity:.6}
+.dcard .txt{position:relative;padding:16px}
+.dcard h3{font-family:var(--d);font-size:20px;margin:0 0 3px;font-weight:600;letter-spacing:-.02em}
+.dcard p{margin:0 0 8px;font-size:12.5px;color:#B9C9D2;line-height:1.5}
+.dcard .ct{font-family:var(--m);font-size:11px;color:var(--glacier)}
+
+/* trip card */
+.tcard{background:#fff;border:1px solid var(--stone);border-radius:4px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;color:inherit}
+.tcard .top{height:132px;position:relative;background:var(--ink)}
+.tcard .top .art{position:absolute;inset:0;opacity:.75}
+.tcard .tag{position:absolute;top:9px;left:9px;background:rgba(20,32,43,.85);color:#fff;font-size:10.5px;padding:3px 7px;border-radius:2px;letter-spacing:.02em}
+.tcard .alt{position:absolute;bottom:8px;right:10px;font-family:var(--m);font-size:11px;color:#fff}
+.tcard .bd{padding:13px 14px 15px;flex:1;display:flex;flex-direction:column}
+.tcard h3{font-family:var(--d);font-size:16px;font-weight:600;margin:0 0 6px;letter-spacing:-.015em;line-height:1.25}
+.tcard .meta{font-size:12px;color:var(--slate);margin:0 0 10px}
+.tcard .spark{margin:0 0 11px}
+.tcard .foot{margin-top:auto;display:flex;align-items:baseline;justify-content:space-between;border-top:1px solid var(--stone);padding-top:10px}
+.tcard .pr{font-family:var(--m);font-size:15px;font-weight:500}
+.tcard .pr small{font-family:var(--b);font-size:11px;color:var(--slate-2);font-weight:400}
+.diff{font-size:11px;padding:2px 7px;border-radius:2px;background:var(--glacier-lo);color:var(--ink-2)}
+.diff.hard{background:var(--crimson-lo);color:var(--crimson)}
+
+/* affiliations */
+.affil{border-top:1px solid var(--stone);border-bottom:1px solid var(--stone);background:#fff}
+.affil .in{max-width:1140px;margin:0 auto;padding:20px 30px;display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+.affil .lb{font-size:12px;color:var(--slate);max-width:15ch;line-height:1.4}
+.affil .lst{display:flex;gap:26px;flex-wrap:wrap;flex:1}
+.affil .it{display:flex;align-items:center;gap:9px;text-decoration:none}
+.affil .sq{width:30px;height:30px;border:1px solid var(--stone-2);border-radius:2px;display:grid;place-items:center;font-family:var(--d);font-size:9.5px;font-weight:700;color:var(--slate);background:var(--paper)}
+.affil .nmz{font-size:11.5px;line-height:1.3;color:var(--ink-2);max-width:19ch}
+.affil .nmz b{display:block;font-weight:600}
+.affil .nmz span{color:var(--slate-2);font-size:10.5px}
+
+/* testimonial */
+.quo{background:#fff;border:1px solid var(--stone);border-radius:4px;padding:20px}
+.quo p{font-size:14px;line-height:1.65;margin:0 0 14px;color:var(--ink-2)}
+.quo .who{display:flex;align-items:center;gap:10px}
+.quo .av{width:34px;height:34px;border-radius:50%;background:var(--glacier);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600}
+.quo .who div{font-size:12px;line-height:1.4}
+.quo .who span{color:var(--slate-2)}
+
+/* cta band */
+.band{background:var(--ink);color:#fff;padding:44px 0}
+.band .in{max-width:1140px;margin:0 auto;padding:0 30px;display:flex;align-items:center;gap:26px;flex-wrap:wrap}
+.band h3{font-family:var(--d);font-size:25px;margin:0 0 6px;letter-spacing:-.02em;font-weight:600}
+.band p{margin:0;color:#AFC1CB;font-size:14px;max-width:44ch;line-height:1.6}
+.band .ax{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+.frame.mob .band .ax{margin-left:0;width:100%}
+
+/* footer */
+.ft{background:#0E1720;color:#8FA3AF;padding:44px 0 22px;font-size:13px}
+.ft .in{max-width:1140px;margin:0 auto;padding:0 30px}
+.ft .cols{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:28px;margin-bottom:30px}
+.frame.mob .ft .cols{grid-template-columns:1fr 1fr}
+.ft h4{color:#fff;font-size:12px;margin:0 0 11px;font-weight:600;font-family:var(--d)}
+.ft a{display:block;color:#8FA3AF;text-decoration:none;margin-bottom:7px;font-size:12.5px}
+.ft .fa{display:flex;gap:16px;flex-wrap:wrap;padding:16px 0;border-top:1px solid #1E2C37;border-bottom:1px solid #1E2C37;margin-bottom:16px}
+.ft .fa .sq{width:26px;height:26px;border:1px solid #2A3B47;border-radius:2px;display:grid;place-items:center;font-family:var(--d);font-size:8px;font-weight:700;color:#7E93A0}
+.ft .fa .it{display:flex;align-items:center;gap:7px;font-size:11px;color:#7E93A0;text-decoration:none}
+.ft .btm{display:flex;justify-content:space-between;gap:16px;font-size:11.5px;color:#61798A;flex-wrap:wrap}
+
+/* breadcrumb + page head */
+.crumb{font-size:12px;color:var(--slate);padding:14px 0}
+.crumb a{text-decoration:none;color:var(--slate)}
+.crumb b{color:var(--ink);font-weight:500}
+.phead{padding:8px 0 26px}
+.phead h1{font-family:var(--d);font-size:38px;letter-spacing:-.03em;margin:0 0 10px;font-weight:700;line-height:1.08}
+.frame.mob .phead h1{font-size:27px}
+.phead p{color:var(--slate);font-size:14.5px;max-width:62ch;line-height:1.65;margin:0}
+
+/* trip detail */
+.tsplit{display:grid;grid-template-columns:1fr 322px;gap:36px;align-items:start;padding-bottom:52px}
+.frame.mob .tsplit{grid-template-columns:1fr;gap:24px}
+.facts{display:flex;gap:0;border:1px solid var(--stone);border-radius:4px;background:#fff;overflow:hidden;margin:0 0 24px}
+.facts div{flex:1;padding:12px 14px;border-right:1px solid var(--stone)}
+.facts div:last-child{border-right:0}
+.facts b{display:block;font-family:var(--m);font-size:15px;font-weight:500}
+.facts span{font-size:11px;color:var(--slate-2)}
+.frame.mob .facts{flex-wrap:wrap}
+.frame.mob .facts div{flex:1 0 50%;border-bottom:1px solid var(--stone)}
+.answer{background:var(--glacier-lo);border-left:3px solid var(--glacier);padding:16px 18px;margin:0 0 26px;font-size:14.5px;line-height:1.7;color:var(--ink-2)}
+.prose h3{font-family:var(--d);font-size:19px;margin:30px 0 10px;font-weight:600;letter-spacing:-.02em}
+.prose p{font-size:14.5px;line-height:1.75;color:var(--ink-2);margin:0 0 13px;max-width:72ch}
+.prose ul{margin:0 0 13px;padding-left:19px}
+.prose li{font-size:14.5px;line-height:1.75;color:var(--ink-2);margin-bottom:5px}
+.day{border:1px solid var(--stone);border-radius:3px;margin-bottom:7px;background:#fff}
+.day .hdr{padding:12px 14px;display:flex;align-items:center;gap:13px;cursor:pointer}
+.day .n{font-family:var(--m);font-size:11px;color:var(--slate-2);width:44px;flex-shrink:0}
+.day .ti{font-size:14px;font-weight:500;flex:1}
+.day .al{font-family:var(--m);font-size:11.5px;color:var(--glacier)}
+.day .bdy{padding:0 14px 14px 71px;font-size:13.5px;color:var(--slate);line-height:1.7}
+.day .bdy dl{display:flex;gap:22px;margin:10px 0 0;font-size:12px}
+.day .bdy dt{color:var(--slate-2)}
+.day .bdy dd{margin:0;color:var(--ink-2)}
+.incl{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.frame.mob .incl{grid-template-columns:1fr}
+.incl ul{list-style:none;padding:0;margin:0}
+.incl li{font-size:13.5px;padding:6px 0 6px 22px;position:relative;color:var(--ink-2);border-bottom:1px solid var(--stone)}
+.incl li:before{content:'';position:absolute;left:0;top:13px;width:9px;height:9px;border-radius:50%;background:var(--moss)}
+.incl .ex li:before{background:var(--stone-2)}
+table.pr{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff;border:1px solid var(--stone)}
+table.pr th{text-align:left;padding:10px 13px;background:var(--paper);font-size:12px;color:var(--slate);font-weight:500;border-bottom:1px solid var(--stone)}
+table.pr td{padding:10px 13px;border-bottom:1px solid var(--stone)}
+table.pr tr:last-child td{border-bottom:0}
+.gal{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.gal div{height:110px;border-radius:3px;overflow:hidden;background:var(--ink)}
+.side{position:sticky;top:18px}
+.pricebox{background:#fff;border:1px solid var(--stone);border-radius:4px;padding:18px;margin-bottom:12px}
+.pricebox .from{font-size:11.5px;color:var(--slate-2)}
+.pricebox .big{font-family:var(--m);font-size:30px;font-weight:500;letter-spacing:-.02em;line-height:1.1;margin:2px 0 2px}
+.pricebox .pp{font-size:12px;color:var(--slate);margin-bottom:14px}
+.pricebox .note{font-size:11px;color:var(--slate-2);margin-top:10px;line-height:1.5}
+.sideaff{background:#fff;border:1px solid var(--stone);border-radius:4px;padding:13px 15px;margin-bottom:12px}
+.sideaff .t{font-size:11px;color:var(--slate-2);margin-bottom:9px}
+.sideaff .r{display:flex;gap:8px}
+.sideaff .sq{width:28px;height:28px;border:1px solid var(--stone-2);border-radius:2px;display:grid;place-items:center;font-family:var(--d);font-size:8.5px;font-weight:700;color:var(--slate);background:var(--paper)}
+
+/* filters */
+.fsplit{display:grid;grid-template-columns:224px 1fr;gap:30px;align-items:start;padding-bottom:52px}
+.frame.mob .fsplit{grid-template-columns:1fr}
+.fbox{background:#fff;border:1px solid var(--stone);border-radius:4px;padding:15px;position:sticky;top:18px}
+.fgrp{border-bottom:1px solid var(--stone);padding-bottom:13px;margin-bottom:13px}
+.fgrp:last-child{border:0;margin:0;padding:0}
+.fgrp h4{font-size:12px;margin:0 0 9px;font-weight:600}
+.fgrp label{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2);padding:3px 0;cursor:pointer}
+.fgrp .cnt{margin-left:auto;font-family:var(--m);font-size:11px;color:var(--slate-2)}
+.resbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.resbar .n{font-size:13px;color:var(--slate)}
+.resbar select{margin-left:auto;border:1px solid var(--stone-2);border-radius:3px;padding:6px 9px;font:inherit;font-size:12.5px;background:#fff}
+.chip{background:var(--ink);color:#fff;font-size:11.5px;padding:4px 9px;border-radius:2px;display:inline-flex;gap:6px;align-items:center}
+.chip b{cursor:pointer;font-weight:400;opacity:.6}
+
+/* forms */
+.form{background:#fff;border:1px solid var(--stone);border-radius:4px;padding:22px}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:12.5px;font-weight:500;margin-bottom:5px}
+.fld input,.fld select,.fld textarea{width:100%;border:1px solid var(--stone-2);border-radius:3px;padding:9px 11px;font:inherit;font-size:13.5px;background:#fff;outline:none;color:var(--ink)}
+.fld input:focus,.fld textarea:focus,.fld select:focus{border-color:var(--glacier);box-shadow:0 0 0 3px var(--glacier-lo)}
+.fld textarea{min-height:92px;resize:vertical}
+.fld .hint{font-size:11px;color:var(--slate-2);margin-top:4px}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frame.mob .f2{grid-template-columns:1fr}
+.radio-row{display:flex;gap:9px}
+.radio-row label{flex:1;border:1px solid var(--stone-2);border-radius:3px;padding:9px;font-size:13px;text-align:center;cursor:pointer}
+.radio-row label.sel{border-color:var(--ink);background:var(--ink);color:#fff}
+
+/* faq accordion */
+.faq{background:#fff;border:1px solid var(--stone);border-radius:4px;overflow:hidden}
+.faq .q{padding:14px 16px;border-bottom:1px solid var(--stone);display:flex;gap:12px;align-items:flex-start;cursor:pointer}
+.faq .q:last-child{border-bottom:0}
+.faq .q .mk{color:var(--crimson);font-size:15px;line-height:1.3}
+.faq .q .tx{flex:1}
+.faq .q h4{margin:0;font-size:14px;font-weight:500}
+.faq .q p{margin:8px 0 0;font-size:13.5px;color:var(--slate);line-height:1.7;max-width:74ch}
+.tabs{display:flex;gap:5px;margin-bottom:16px;flex-wrap:wrap}
+.tabs button{background:#fff;border:1px solid var(--stone-2);border-radius:20px;padding:6px 14px;font-size:12.5px;color:var(--slate)}
+.tabs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+/* blog */
+.bcard{background:#fff;border:1px solid var(--stone);border-radius:4px;overflow:hidden;text-decoration:none;color:inherit;display:flex;flex-direction:column}
+.bcard .im{height:124px;background:var(--ink);position:relative}
+.bcard .bd{padding:14px}
+.bcard .cat{font-size:10.5px;color:var(--crimson);margin-bottom:6px}
+.bcard h3{font-family:var(--d);font-size:15.5px;margin:0 0 7px;font-weight:600;line-height:1.3;letter-spacing:-.015em}
+.bcard p{margin:0 0 10px;font-size:13px;color:var(--slate);line-height:1.6}
+.bcard .mt{font-size:11px;color:var(--slate-2);font-family:var(--m)}
+
+/* legal */
+.legal{display:grid;grid-template-columns:210px 1fr;gap:36px;padding-bottom:52px}
+.frame.mob .legal{grid-template-columns:1fr}
+.toc{position:sticky;top:18px;font-size:13px}
+.toc a{display:block;padding:5px 0;color:var(--slate);text-decoration:none;border-left:2px solid var(--stone);padding-left:11px}
+.toc a.on{color:var(--ink);border-left-color:var(--crimson)}
+
+/* error */
+.err{text-align:center;padding:76px 0 52px}
+.err .code{font-family:var(--m);font-size:13px;color:var(--crimson);margin-bottom:14px}
+.err h1{font-family:var(--d);font-size:38px;letter-spacing:-.03em;margin:0 0 12px;font-weight:700}
+.err p{color:var(--slate);font-size:15px;max-width:48ch;margin:0 auto 24px;line-height:1.7}
+
+/* cookie banner */
+.cookie{position:relative;background:var(--ink);color:#fff;padding:16px 0}
+.cookie .in{max-width:1140px;margin:0 auto;padding:0 30px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.cookie p{margin:0;font-size:12.5px;color:#B7C7D0;line-height:1.6;max-width:66ch}
+.cookie a{color:#fff}
+.cookie .ax{margin-left:auto;display:flex;gap:8px}
+
+/* ======= ADMIN ======= */
+.adm{display:grid;grid-template-columns:206px 1fr;min-height:640px;background:var(--paper)}
+.frame.mob .adm{grid-template-columns:1fr}
+.aside{background:var(--ink);color:#fff;padding:16px 0}
+.frame.mob .aside{display:none}
+.aside .lg{padding:0 16px 18px;font-family:var(--d);font-weight:700;font-size:14px;letter-spacing:-.02em}
+.aside .gp{font-size:10px;color:#5D7181;padding:14px 16px 5px;letter-spacing:.07em}
+.aside a{display:flex;align-items:center;gap:9px;padding:7px 16px;font-size:13px;color:#A8BCC7;text-decoration:none;border-left:2px solid transparent}
+.aside a.on{background:#1B2A36;color:#fff;border-left-color:var(--crimson)}
+.aside .bg{margin-left:auto;font-family:var(--m);font-size:10px;background:var(--crimson);color:#fff;border-radius:9px;padding:1px 6px}
+.atop{background:#fff;border-bottom:1px solid var(--stone);padding:12px 22px;display:flex;align-items:center;gap:14px}
+.atop h2{font-family:var(--d);font-size:17px;margin:0;font-weight:600;letter-spacing:-.02em}
+.atop .rt{margin-left:auto;display:flex;align-items:center;gap:11px;font-size:12.5px;color:var(--slate)}
+.atop .who{width:27px;height:27px;border-radius:50%;background:var(--glacier);color:#fff;display:grid;place-items:center;font-size:11px;font-weight:600}
+.abody{padding:22px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.frame.mob .stats{grid-template-columns:1fr 1fr}
+.stat{background:#fff;border:1px solid var(--stone);border-radius:4px;padding:14px}
+.stat .n{font-family:var(--m);font-size:25px;font-weight:500;letter-spacing:-.02em;line-height:1.1}
+.stat .l{font-size:11.5px;color:var(--slate);margin-top:3px}
+.stat .d{font-size:11px;color:var(--moss);margin-top:6px}
+.card{background:#fff;border:1px solid var(--stone);border-radius:4px;margin-bottom:16px}
+.card .ch{padding:12px 15px;border-bottom:1px solid var(--stone);display:flex;align-items:center;gap:11px}
+.card .ch h3{margin:0;font-size:13.5px;font-weight:600;font-family:var(--d)}
+.card .cb{padding:15px}
+.card .cb.flush{padding:0}
+table.dt{width:100%;border-collapse:collapse;font-size:13px}
+table.dt th{text-align:left;padding:9px 15px;background:var(--paper);font-size:11px;color:var(--slate);font-weight:500;border-bottom:1px solid var(--stone);white-space:nowrap}
+table.dt td{padding:10px 15px;border-bottom:1px solid var(--stone);vertical-align:middle}
+table.dt tr:last-child td{border-bottom:0}
+.pill{font-size:11px;padding:2px 8px;border-radius:11px;display:inline-block}
+.pill.new{background:var(--crimson-lo);color:var(--crimson)}
+.pill.con{background:#E7F0E9;color:var(--moss)}
+.pill.pub{background:#E7F0E9;color:var(--moss)}
+.pill.dr{background:var(--stone);color:var(--slate)}
+.pill.ar{background:#F2EFE6;color:var(--amber)}
+.act{color:var(--glacier);font-size:12.5px;text-decoration:none;margin-right:11px}
+.warnrow{background:#FBF4E4;border:1px solid #EBDCB4;border-radius:4px;padding:11px 14px;font-size:12.5px;color:#7A5A12;margin-bottom:16px;display:flex;gap:11px;align-items:center}
+.atabs{display:flex;gap:2px;border-bottom:1px solid var(--stone);margin-bottom:18px;flex-wrap:wrap}
+.atabs button{background:none;border:0;border-bottom:2px solid transparent;padding:9px 13px;font-size:13px;color:var(--slate)}
+.atabs button.on{color:var(--ink);border-bottom-color:var(--crimson);font-weight:500}
+.savebar{background:#fff;border:1px solid var(--stone);border-radius:4px;padding:11px 15px;display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.savebar .st{font-size:12px;color:var(--slate)}
+.savebar .ax{margin-left:auto;display:flex;gap:8px}
+.dayrow{display:flex;gap:11px;align-items:flex-start;background:var(--paper);border:1px solid var(--stone);border-radius:3px;padding:11px;margin-bottom:7px}
+.dayrow .gr{color:var(--stone-2);font-size:15px;cursor:grab;padding-top:6px}
+.dayrow .fs{flex:1;display:grid;grid-template-columns:56px 1fr 96px;gap:8px}
+.dayrow input{border:1px solid var(--stone-2);border-radius:3px;padding:6px 9px;font:inherit;font-size:12.5px;width:100%}
+.tierrow{display:grid;grid-template-columns:1fr 1fr 1fr 30px;gap:8px;margin-bottom:7px;align-items:center}
+.upl{border:1.5px dashed var(--stone-2);border-radius:4px;padding:26px;text-align:center;color:var(--slate);font-size:13px;background:var(--paper)}
+.thumbs{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:11px}
+.frame.mob .thumbs{grid-template-columns:repeat(3,1fr)}
+.thumbs .th{height:70px;border-radius:3px;background:var(--ink);position:relative;overflow:hidden}
+.thumbs .th.no{outline:1.5px solid var(--crimson)}
+.thumbs .th b{position:absolute;bottom:0;left:0;right:0;background:var(--crimson);color:#fff;font-size:9px;padding:2px 4px;font-weight:400;text-align:center}
+.serp{border:1px solid var(--stone);border-radius:3px;padding:13px;background:var(--paper)}
+.serp .u{font-size:11.5px;color:var(--moss)}
+.serp .t{font-size:16px;color:#1A4FA0;margin:3px 0}
+.serp .d{font-size:12.5px;color:var(--slate);line-height:1.5}
+.login{min-height:640px;display:grid;place-items:center;background:var(--ink);position:relative;overflow:hidden}
+.login .art{position:absolute;inset:0;opacity:.35}
+.loginbox{position:relative;background:#fff;border-radius:5px;padding:30px;width:340px;max-width:90%}
+.loginbox .lg{font-family:var(--d);font-weight:700;font-size:16px;margin-bottom:3px}
+.loginbox .sb{font-size:12px;color:var(--slate);margin-bottom:20px}
+.alert{background:var(--crimson-lo);border-left:3px solid var(--crimson);color:#8C231C;font-size:12.5px;padding:10px 12px;margin-bottom:14px;line-height:1.5}
+.empty{text-align:center;padding:44px 20px;color:var(--slate)}
+.empty h3{font-family:var(--d);font-size:17px;margin:0 0 7px;color:var(--ink);font-weight:600}
+.empty p{margin:0 0 16px;font-size:13.5px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="proto">
+
+<div class="pnav">
+  <h1>Trek &amp; Climb Adventure</h1>
+  <div class="sub">UI/UX prototype · v1</div>
+  <div class="pgrp">PUBLIC SITE</div>
+  <a href="#" class="on" data-s="home">Homepage</a>
+  <a href="#" data-s="destinations">Destinations overview</a>
+  <a href="#" data-s="nepal">Destination — Nepal</a>
+  <a href="#" data-s="india">Destination — India</a>
+  <a href="#" data-s="activity">Activity — Trekking</a>
+  <a href="#" data-s="trip">Trip detail</a>
+  <a href="#" data-s="trips">All trips + filters</a>
+  <a href="#" data-s="blog">Blog index</a>
+  <a href="#" data-s="post">Blog post</a>
+  <a href="#" data-s="contact">Contact</a>
+  <a href="#" data-s="faq">FAQ</a>
+  <a href="#" data-s="about">About</a>
+  <a href="#" data-s="privacy">Privacy policy</a>
+  <div class="pgrp">STATES</div>
+  <a href="#" data-s="e404">404 not found</a>
+  <a href="#" data-s="e500">500 server error</a>
+  <a href="#" data-s="emptyf">No filter results</a>
+  <div class="pgrp">ADMIN</div>
+  <a href="#" data-s="alogin">Login</a>
+  <a href="#" data-s="adash">Dashboard</a>
+  <a href="#" data-s="atrips">Trips list</a>
+  <a href="#" data-s="aedit">Trip editor</a>
+  <a href="#" data-s="abook">Booking inquiries</a>
+  <a href="#" data-s="aset">Settings</a>
+</div>
+
+<div>
+  <div class="pbar">
+    <span class="nm" id="crumbnm">Homepage</span>
+    <div class="sz">
+      <button class="on" data-w="d">Desktop</button>
+      <button data-w="m">Mobile</button>
+    </div>
+  </div>
+  <div class="stage">
+  <div class="frame" id="frame">
+
+<!-- ============ SHARED SVG DEFS ============ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="ridgeA" viewBox="0 0 800 300" preserveAspectRatio="none">
+  <rect width="800" height="300" fill="#14202B"/>
+  <path d="M0 300 L0 214 L88 150 L150 186 L232 96 L300 148 L368 78 L436 140 L520 62 L600 132 L672 96 L740 148 L800 118 L800 300 Z" fill="#22323F"/>
+  <path d="M0 300 L0 250 L74 206 L156 244 L242 176 L322 226 L410 168 L494 220 L580 172 L664 222 L748 190 L800 216 L800 300 Z" fill="#2C4050"/>
+  <path d="M0 300 L0 278 L110 252 L214 276 L318 244 L430 272 L540 246 L650 274 L764 250 L800 264 L800 300 Z" fill="#3A5162"/>
+</symbol>
+<symbol id="ridgeB" viewBox="0 0 800 300" preserveAspectRatio="none">
+  <rect width="800" height="300" fill="#16242F"/>
+  <path d="M0 300 L0 190 L96 118 L182 176 L268 74 L354 150 L448 60 L540 138 L628 92 L724 154 L800 124 L800 300 Z" fill="#25384A"/>
+  <path d="M0 300 L0 246 L96 200 L200 250 L296 186 L400 240 L500 190 L610 244 L714 204 L800 232 L800 300 Z" fill="#33495C"/>
+</symbol>
+<symbol id="ridgeC" viewBox="0 0 800 300" preserveAspectRatio="none">
+  <rect width="800" height="300" fill="#182833"/>
+  <path d="M0 300 L0 226 L120 148 L226 206 L338 122 L452 196 L560 130 L682 202 L800 152 L800 300 Z" fill="#2A3E4E"/>
+  <path d="M0 300 L0 262 L128 226 L252 264 L374 224 L500 262 L620 228 L740 264 L800 244 L800 300 Z" fill="#3A5265"/>
+</symbol>
+</defs></svg>
+
+<!-- ================= HOMEPAGE ================= -->
+<section class="screen on" id="s-home">
+  <header class="hd"><div class="in">
+    <div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div>
+    <nav><a href="#" class="cur">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav>
+    <div class="rt"><select class="cur-sel"><option>USD $</option><option>EUR €</option><option>GBP £</option><option>NPR ₨</option></select><a href="#" class="btn pri sm">Plan your trek</a></div>
+    <button class="burger">☰</button>
+  </div></header>
+
+  <div class="hero">
+    <div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div>
+    <div class="in">
+      <h1>Twenty-two years walking these trails.</h1>
+      <p>A Pokhara-run operator taking small groups into Nepal, India, Tibet and Bhutan. Licensed guides, no subcontracting, no fixed departures you have to squeeze into.</p>
+      <div class="searchbar">
+        <input placeholder="Everest Base Camp, Annapurna, Island Peak…">
+        <select><option>Any destination</option><option>Nepal</option><option>India</option><option>Tibet</option><option>Bhutan</option></select>
+        <button class="btn pri">Search</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="pad wrap">
+    <div class="rowhead"><div><h2 class="sec">Where we go</h2><p class="seclead">Four regions, each with its own permit rules, seasons and pace. Nepal is where most people start.</p></div></div>
+    <div class="g4">
+      <a href="#" class="dcard"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><div class="txt"><h3>Nepal</h3><p>Everest, Annapurna, Manaslu and Langtang. Trekking, peak climbing and short hikes.</p><div class="ct">24 trips</div></div></a>
+      <a href="#" class="dcard"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="txt"><h3>India</h3><p>Ladakh and the Indian Himalaya, high desert crossings and monastery routes.</p><div class="ct">6 trips</div></div></a>
+      <a href="#" class="dcard"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><div class="txt"><h3>Tibet</h3><p>Kailash kora and the Tibetan plateau. Permits arranged end to end.</p><div class="ct">4 trips</div></div></a>
+      <a href="#" class="dcard"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="txt"><h3>Bhutan</h3><p>Druk Path, Jomolhari and cultural circuits under the daily tariff system.</p><div class="ct">5 trips</div></div></a>
+    </div>
+  </div>
+
+  <div class="pad-s bg-w"><div class="wrap">
+    <div class="rowhead"><div><h2 class="sec">Trips people book most</h2></div><a href="#" class="lnk">See all 39 trips</a></div>
+    <div class="g4">
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="tag">Trekking</span><span class="alt">5,364 m</span></div>
+        <div class="bd"><h3>Everest Base Camp</h3><p class="meta">14 days · Nepal</p>
+        <svg class="spark" width="100%" height="24" viewBox="0 0 200 24" preserveAspectRatio="none"><polyline points="0,22 22,19 46,15 70,16 96,10 122,11 146,4 168,9 200,20" fill="none" stroke="#7FA8B8" stroke-width="1.5"/></svg>
+        <div class="foot"><span class="pr">$1,395 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><span class="tag">Trekking</span><span class="alt">5,416 m</span></div>
+        <div class="bd"><h3>Annapurna Circuit</h3><p class="meta">16 days · Nepal</p>
+        <svg class="spark" width="100%" height="24" viewBox="0 0 200 24" preserveAspectRatio="none"><polyline points="0,23 26,20 52,17 78,12 104,13 128,3 154,12 178,17 200,21" fill="none" stroke="#7FA8B8" stroke-width="1.5"/></svg>
+        <div class="foot"><span class="pr">$1,180 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><span class="tag">Peak climbing</span><span class="alt">6,189 m</span></div>
+        <div class="bd"><h3>Island Peak Climbing</h3><p class="meta">16 days · Nepal</p>
+        <svg class="spark" width="100%" height="24" viewBox="0 0 200 24" preserveAspectRatio="none"><polyline points="0,22 24,20 50,16 74,14 98,9 120,10 144,2 170,11 200,19" fill="none" stroke="#7FA8B8" stroke-width="1.5"/></svg>
+        <div class="foot"><span class="pr">$2,250 <small>pp</small></span><span class="diff hard">Challenging</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="tag">Trekking</span><span class="alt">4,984 m</span></div>
+        <div class="bd"><h3>Langtang Valley</h3><p class="meta">9 days · Nepal</p>
+        <svg class="spark" width="100%" height="24" viewBox="0 0 200 24" preserveAspectRatio="none"><polyline points="0,22 30,18 60,14 90,11 118,6 146,12 172,17 200,21" fill="none" stroke="#7FA8B8" stroke-width="1.5"/></svg>
+        <div class="foot"><span class="pr">$890 <small>pp</small></span><span class="diff">Easy</span></div></div></a>
+    </div>
+  </div></div>
+
+  <div class="pad wrap">
+    <div class="g3">
+      <div><h2 class="sec" style="font-size:19px">We run our own trips</h2><p class="seclead" style="margin:0">No agency handoff. The guide who meets you at the airport works for us and has walked your route dozens of times.</p></div>
+      <div><h2 class="sec" style="font-size:19px">Groups stay under twelve</h2><p class="seclead" style="margin:0">Above twelve people a teahouse route stops working. We cap it and add a second guide instead.</p></div>
+      <div><h2 class="sec" style="font-size:19px">Prices include the permits</h2><p class="seclead" style="margin:0">TIMS, national park and conservation fees are in the quoted price. You are not asked for cash at a checkpoint.</p></div>
+    </div>
+  </div>
+
+  <div class="pad-s bg-st"><div class="wrap">
+    <div class="rowhead"><div><h2 class="sec">Browse Nepal by activity</h2></div><a href="#" class="lnk">All activities</a></div>
+    <div class="g3">
+      <a href="#" class="dcard" style="min-height:150px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><div class="txt"><h3>Trekking</h3><div class="ct">16 trips</div></div></a>
+      <a href="#" class="dcard" style="min-height:150px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><div class="txt"><h3>Peak climbing</h3><div class="ct">5 trips</div></div></a>
+      <a href="#" class="dcard" style="min-height:150px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="txt"><h3>Hiking</h3><div class="ct">3 trips</div></div></a>
+    </div>
+  </div></div>
+
+  <div class="pad wrap">
+    <div class="rowhead"><div><h2 class="sec">What people said afterwards</h2></div></div>
+    <div class="g3">
+      <div class="quo"><p>Bishnu rerouted us around a landslide above Chame without any fuss and we still made the pass on schedule. That is the whole value of a local operator.</p><div class="who"><div class="av">HM</div><div>Hannah M.<br><span>Annapurna Circuit · Germany</span></div></div></div>
+      <div class="quo"><p>I was nervous about altitude at 58. They built in two acclimatisation days I had not asked for and checked oxygen levels every evening.</p><div class="who"><div class="av">DR</div><div>David R.<br><span>Everest Base Camp · Australia</span></div></div></div>
+      <div class="quo"><p>Quoted price was the final price. No extra permit fees, no tipping pressure, no upsell on the trail. Refreshing.</p><div class="who"><div class="av">SK</div><div>Sofia K.<br><span>Langtang Valley · Spain</span></div></div></div>
+    </div>
+  </div>
+
+  <div class="affil"><div class="in">
+    <div class="lb">Registered and recognized by</div>
+    <div class="lst">
+      <a href="https://tourism.gov.np/" class="it"><span class="sq">DoT</span><span class="nmz"><b>Department of Tourism</b><span>Govt. of Nepal</span></span></a>
+      <a href="https://ntb.gov.np/" class="it"><span class="sq">NTB</span><span class="nmz"><b>Nepal Tourism Board</b><span>Licence 2043/78</span></span></a>
+      <a href="https://taanpokhara.org/" class="it"><span class="sq">TAAN</span><span class="nmz"><b>Trekking Agencies' Association</b><span>Pokhara chapter</span></span></a>
+      <a href="https://www.nepalmountaineering.org/" class="it"><span class="sq">NMA</span><span class="nmz"><b>Nepal Mountaineering Association</b><span>Member since 2009</span></span></a>
+    </div>
+  </div></div>
+
+  <div class="pad wrap">
+    <div class="rowhead"><div><h2 class="sec">From the field notes</h2></div><a href="#" class="lnk">All posts</a></div>
+    <div class="g3">
+      <a href="#" class="bcard"><div class="im"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><div class="bd"><div class="cat">Permits &amp; visas</div><h3>What the 2026 TIMS card change means for independent trekkers</h3><p>The rules tightened in April. Here is what you now need before Lukla.</p><div class="mt">12 Aug 2026 · 6 min</div></div></a>
+      <a href="#" class="bcard"><div class="im"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><div class="bd"><div class="cat">Trekking guides</div><h3>Manaslu or Annapurna: choosing between the two circuits</h3><p>Similar length, very different crowds, permits and teahouse standards.</p><div class="mt">28 Jul 2026 · 9 min</div></div></a>
+      <a href="#" class="bcard"><div class="im"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="bd"><div class="cat">Travel tips</div><h3>Altitude sickness: what our guides actually watch for</h3><p>Symptoms, the descent rule, and why we build in the extra day.</p><div class="mt">14 Jul 2026 · 7 min</div></div></a>
+    </div>
+  </div>
+
+  <div class="band"><div class="in">
+    <div><h3>Not sure which trek fits?</h3><p>Tell us your dates and how much walking you have done. We will suggest two or three routes and a realistic price.</p></div>
+    <div class="ax"><a href="#" class="btn pri">Send an inquiry</a><a href="#" class="btn wa">Message on WhatsApp</a></div>
+  </div></div>
+
+  <div class="cookie"><div class="in">
+    <p>We use cookies to run the site and, if you allow it, to measure which pages people find useful. Analytics stay off until you say yes. <a href="#">Cookie policy</a></p>
+    <div class="ax"><button class="btn gh sm" style="color:#fff;border-color:#3A4E5C">Only essential</button><button class="btn pri sm">Allow analytics</button></div>
+  </div></div>
+
+  <footer class="ft"><div class="in">
+    <div class="cols">
+      <div><div class="logo" style="margin-bottom:10px">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><p style="font-size:12.5px;line-height:1.7;margin:0">Lakeside Road, Ward 6<br>Pokhara 33700, Nepal<br>+977 61 000 000</p></div>
+      <div><h4>Destinations</h4><a href="#">Nepal</a><a href="#">India</a><a href="#">Tibet</a><a href="#">Bhutan</a></div>
+      <div><h4>Trips</h4><a href="#">Trekking</a><a href="#">Peak climbing</a><a href="#">Hiking</a><a href="#">All trips</a></div>
+      <div><h4>Company</h4><a href="#">About us</a><a href="#">Blog</a><a href="#">FAQ</a><a href="#">Contact</a></div>
+    </div>
+    <div class="fa">
+      <a href="https://tourism.gov.np/" class="it"><span class="sq">DoT</span>Department of Tourism</a>
+      <a href="https://ntb.gov.np/" class="it"><span class="sq">NTB</span>Nepal Tourism Board</a>
+      <a href="https://taanpokhara.org/" class="it"><span class="sq">TAAN</span>TAAN Pokhara</a>
+      <a href="https://www.nepalmountaineering.org/" class="it"><span class="sq">NMA</span>Nepal Mountaineering Association</a>
+    </div>
+    <div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms · Booking policy</span></div>
+  </div></footer>
+</section>
+
+<!-- ================= DESTINATIONS ================= -->
+<section class="screen" id="s-destinations">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#" class="cur">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap"><div class="crumb"><a href="#">Home</a> / <b>Destinations</b></div>
+    <div class="phead"><h1>Four regions, one operator</h1><p>We only sell trips we run ourselves. That keeps the list short and means we can answer detailed questions about every route on this page.</p></div>
+    <div class="g2" style="padding-bottom:16px">
+      <a href="#" class="dcard" style="min-height:270px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><div class="txt" style="padding:22px"><h3 style="font-size:25px">Nepal</h3><p style="max-width:44ch">Eight of the world's fourteen highest peaks. Teahouse trekking, trekking peaks up to 6,500 m, and short hikes out of Pokhara.</p><div class="ct">24 trips · Best Mar–May, Sep–Nov</div></div></a>
+      <a href="#" class="dcard" style="min-height:270px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="txt" style="padding:22px"><h3 style="font-size:25px">India</h3><p style="max-width:44ch">Ladakh and Zanskar. High desert, monastery valleys and passes that stay open when Nepal is under monsoon.</p><div class="ct">6 trips · Best Jun–Sep</div></div></a>
+      <a href="#" class="dcard" style="min-height:270px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><div class="txt" style="padding:22px"><h3 style="font-size:25px">Tibet</h3><p style="max-width:44ch">Mount Kailash kora and the road to Everest north side. Group visa and travel permits handled by us.</p><div class="ct">4 trips · Best May–Sep</div></div></a>
+      <a href="#" class="dcard" style="min-height:270px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="txt" style="padding:22px"><h3 style="font-size:25px">Bhutan</h3><p style="max-width:44ch">Druk Path and Jomolhari, plus cultural circuits. Priced under the government daily tariff, which we explain up front.</p><div class="ct">5 trips · Best Mar–May, Sep–Nov</div></div></a>
+    </div>
+    <div class="pad-s">
+      <h2 class="sec">How they compare</h2><p class="seclead">Rough guide before you go deeper.</p>
+      <table class="pr"><thead><tr><th>Region</th><th>Typical length</th><th>Max altitude</th><th>Best months</th><th>Permit complexity</th></tr></thead><tbody>
+        <tr><td>Nepal</td><td class="mono">9–18 days</td><td class="mono">4,000–6,500 m</td><td>Mar–May, Sep–Nov</td><td>Low</td></tr>
+        <tr><td>India (Ladakh)</td><td class="mono">10–16 days</td><td class="mono">4,500–5,600 m</td><td>Jun–Sep</td><td>Medium</td></tr>
+        <tr><td>Tibet</td><td class="mono">8–15 days</td><td class="mono">4,600–5,600 m</td><td>May–Sep</td><td>High</td></tr>
+        <tr><td>Bhutan</td><td class="mono">6–14 days</td><td class="mono">3,000–4,900 m</td><td>Mar–May, Sep–Nov</td><td>Medium</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="band"><div class="in"><div><h3>Still deciding?</h3><p>Send us your dates and fitness and we will narrow it to two options.</p></div><div class="ax"><a href="#" class="btn pri">Send an inquiry</a><a href="#" class="btn wa">WhatsApp</a></div></div></div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms · Booking policy</span></div></div></footer>
+</section>
+
+<!-- ================= NEPAL ================= -->
+<section class="screen" id="s-nepal">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#" class="cur">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="hero" style="padding:0">
+    <div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div>
+    <div class="in" style="padding-top:46px;padding-bottom:52px">
+      <div style="font-size:12px;color:#9FB6C2;margin-bottom:14px">Home / <b style="color:#fff;font-weight:500">Nepal</b></div>
+      <h1 style="font-size:44px">Nepal</h1>
+      <p>Twenty-four routes across Everest, Annapurna, Manaslu and Langtang. This is the only region where we split trips by activity, because a teahouse trek and a 6,000 m climb are not the same holiday.</p>
+    </div>
+  </div>
+  <div class="pad wrap">
+    <div class="rowhead"><div><h2 class="sec">Start with the activity</h2><p class="seclead">Pick the kind of trip first. The routes underneath differ mostly in length and altitude.</p></div><a href="#" class="lnk">All Nepal activities</a></div>
+    <div class="g3">
+      <a href="#" class="dcard" style="min-height:190px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><div class="txt"><h3>Trekking</h3><p>Teahouse routes, 7 to 21 days, no technical skill needed.</p><div class="ct">16 trips</div></div></a>
+      <a href="#" class="dcard" style="min-height:190px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><div class="txt"><h3>Peak climbing</h3><p>Trekking peaks 5,500–6,500 m. Rope and crampon training included.</p><div class="ct">5 trips</div></div></a>
+      <a href="#" class="dcard" style="min-height:190px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="txt"><h3>Hiking</h3><p>Two to four days out of Pokhara. Good for a first taste of altitude.</p><div class="ct">3 trips</div></div></a>
+    </div>
+  </div>
+  <div class="pad-s bg-w"><div class="wrap">
+    <div class="rowhead"><div><h2 class="sec">Popular in Nepal</h2></div><a href="#" class="lnk">All 24 Nepal trips</a></div>
+    <div class="g4">
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="tag">Trekking</span><span class="alt">5,364 m</span></div><div class="bd"><h3>Everest Base Camp</h3><p class="meta">14 days</p><svg class="spark" width="100%" height="24" viewBox="0 0 200 24" preserveAspectRatio="none"><polyline points="0,22 22,19 46,15 70,16 96,10 122,11 146,4 168,9 200,20" fill="none" stroke="#7FA8B8" stroke-width="1.5"/></svg><div class="foot"><span class="pr">$1,395 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><span class="tag">Trekking</span><span class="alt">5,416 m</span></div><div class="bd"><h3>Annapurna Circuit</h3><p class="meta">16 days</p><svg class="spark" width="100%" height="24" viewBox="0 0 200 24" preserveAspectRatio="none"><polyline points="0,23 26,20 52,17 78,12 104,13 128,3 154,12 178,17 200,21" fill="none" stroke="#7FA8B8" stroke-width="1.5"/></svg><div class="foot"><span class="pr">$1,180 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><span class="tag">Trekking</span><span class="alt">5,106 m</span></div><div class="bd"><h3>Manaslu Circuit</h3><p class="meta">14 days</p><svg class="spark" width="100%" height="24" viewBox="0 0 200 24" preserveAspectRatio="none"><polyline points="0,22 28,19 54,16 82,13 108,8 134,4 160,13 182,18 200,21" fill="none" stroke="#7FA8B8" stroke-width="1.5"/></svg><div class="foot"><span class="pr">$1,490 <small>pp</small></span><span class="diff hard">Challenging</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="tag">Hiking</span><span class="alt">4,500 m</span></div><div class="bd"><h3>Mardi Himal</h3><p class="meta">7 days</p><svg class="spark" width="100%" height="24" viewBox="0 0 200 24" preserveAspectRatio="none"><polyline points="0,22 34,18 68,13 100,9 132,6 164,14 200,20" fill="none" stroke="#7FA8B8" stroke-width="1.5"/></svg><div class="foot"><span class="pr">$720 <small>pp</small></span><span class="diff">Easy</span></div></div></a>
+    </div>
+  </div></div>
+  <div class="pad wrap"><div class="g2">
+    <div><h2 class="sec">Before you come</h2>
+      <div class="prose">
+        <h3>Visa</h3><p>On arrival at Kathmandu for most nationalities. 15, 30 or 90 days, paid in cash or card at the airport. Bring a passport photo to save time.</p>
+        <h3>Best season</h3><p>Late September to November is the most stable. March to May is warmer with hazier views and rhododendron in bloom. We run winter trips at lower altitude only.</p>
+        <h3>Permits</h3><p>TIMS card plus the relevant national park or conservation area entry. Restricted areas such as Upper Mustang and Manaslu need an additional permit and a licensed guide. All of this is in your quoted price.</p>
+      </div>
+    </div>
+    <div><h2 class="sec">Common questions</h2>
+      <div class="faq" style="margin-top:20px">
+        <div class="q"><span class="mk">+</span><div class="tx"><h4>Do I need previous trekking experience for Everest Base Camp?</h4></div></div>
+        <div class="q"><span class="mk">−</span><div class="tx"><h4>How fit do I need to be?</h4><p>You should be comfortable walking 5 to 7 hours on consecutive days on uneven ground. Altitude matters more than speed, which is why our itineraries include two rest days rather than one.</p></div></div>
+        <div class="q"><span class="mk">+</span><div class="tx"><h4>Is travel insurance mandatory?</h4></div></div>
+        <div class="q"><span class="mk">+</span><div class="tx"><h4>What happens if a flight to Lukla is cancelled?</h4></div></div>
+      </div>
+    </div>
+  </div></div>
+  <div class="band"><div class="in"><div><h3>Ask about a Nepal trek</h3><p>Typical reply time is under four hours during office hours in Nepal.</p></div><div class="ax"><a href="#" class="btn pri">Send an inquiry</a><a href="#" class="btn wa">WhatsApp</a></div></div></div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms · Booking policy</span></div></div></footer>
+</section>
+
+<!-- ================= INDIA (no activity layer) ================= -->
+<section class="screen" id="s-india">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#" class="cur">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="hero"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div>
+    <div class="in" style="padding-top:46px;padding-bottom:52px">
+      <div style="font-size:12px;color:#9FB6C2;margin-bottom:14px">Home / <b style="color:#fff;font-weight:500">India</b></div>
+      <h1 style="font-size:44px">India</h1>
+      <p>Ladakh and Zanskar, in the rain shadow of the main Himalaya. These routes run through the monsoon months when Nepal is closed in cloud.</p>
+    </div>
+  </div>
+  <div class="pad wrap">
+    <div class="rowhead"><div><h2 class="sec">All India trips</h2><p class="seclead">Six routes. No activity grouping here — every India trip is a trek.</p></div></div>
+    <div class="g3">
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><span class="alt">5,150 m</span></div><div class="bd"><h3>Markha Valley Trek</h3><p class="meta">11 days · Ladakh</p><div class="foot"><span class="pr">$1,240 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><span class="alt">5,600 m</span></div><div class="bd"><h3>Stok Kangri Expedition</h3><p class="meta">13 days · Ladakh</p><div class="foot"><span class="pr">$1,890 <small>pp</small></span><span class="diff hard">Challenging</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="alt">4,900 m</span></div><div class="bd"><h3>Zanskar Valley Trek</h3><p class="meta">15 days · Zanskar</p><div class="foot"><span class="pr">$1,650 <small>pp</small></span><span class="diff hard">Challenging</span></div></div></a>
+    </div>
+  </div>
+  <div class="pad-s bg-w"><div class="wrap"><div class="g2">
+    <div class="prose"><h2 class="sec">Travel information</h2><h3>Visa</h3><p>India requires a visa before arrival for most nationalities. The e-visa covers tourism and is usually issued in three to five working days.</p><h3>Best season</h3><p>June to September. Roads over Rohtang and Khardung La open around late May and close with the first heavy snow in October.</p><h3>Inner Line Permits</h3><p>Parts of Ladakh near the border need an Inner Line Permit. We arrange these once you confirm; they require passport details two weeks ahead.</p></div>
+    <div><h2 class="sec">Common questions</h2><div class="faq" style="margin-top:20px">
+      <div class="q"><span class="mk">−</span><div class="tx"><h4>How does acclimatisation work when you fly into Leh?</h4><p>Leh sits at 3,500 m and you arrive there by air, so the first two days are rest days by design. No trekking, short walks only, plenty of water.</p></div></div>
+      <div class="q"><span class="mk">+</span><div class="tx"><h4>Can I combine Ladakh with a Nepal trek?</h4></div></div>
+      <div class="q"><span class="mk">+</span><div class="tx"><h4>Are these camping or teahouse treks?</h4></div></div>
+    </div></div>
+  </div></div></div>
+  <div class="band"><div class="in"><div><h3>Ask about Ladakh</h3><p>Permits need lead time, so get in touch early for July and August.</p></div><div class="ax"><a href="#" class="btn pri">Send an inquiry</a><a href="#" class="btn wa">WhatsApp</a></div></div></div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms · Booking policy</span></div></div></footer>
+</section>
+
+<!-- ================= ACTIVITY ================= -->
+<section class="screen" id="s-activity">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#" class="cur">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="hero"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div>
+    <div class="in" style="padding-top:42px;padding-bottom:46px">
+      <div style="font-size:12px;color:#9FB6C2;margin-bottom:14px">Home / <a href="#" style="color:#9FB6C2">Nepal</a> / <b style="color:#fff;font-weight:500">Trekking</b></div>
+      <h1 style="font-size:40px">Trekking in Nepal</h1>
+      <p>Sixteen teahouse routes between 7 and 21 days. You walk with a daypack, sleep in lodges, and need no technical skills — just the legs for consecutive days out.</p>
+    </div>
+  </div>
+  <div class="pad wrap">
+    <div class="resbar"><span class="n"><b class="mono">16</b> trips</span><select><option>Sort: Most booked</option><option>Duration, short to long</option><option>Price, low to high</option><option>Altitude, low to high</option></select></div>
+    <div class="g4" style="margin-bottom:18px">
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="alt">5,364 m</span></div><div class="bd"><h3>Everest Base Camp</h3><p class="meta">14 days</p><div class="foot"><span class="pr">$1,395 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><span class="alt">5,416 m</span></div><div class="bd"><h3>Annapurna Circuit</h3><p class="meta">16 days</p><div class="foot"><span class="pr">$1,180 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><span class="alt">5,106 m</span></div><div class="bd"><h3>Manaslu Circuit</h3><p class="meta">14 days</p><div class="foot"><span class="pr">$1,490 <small>pp</small></span><span class="diff hard">Challenging</span></div></div></a>
+      <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="alt">4,984 m</span></div><div class="bd"><h3>Langtang Valley</h3><p class="meta">9 days</p><div class="foot"><span class="pr">$890 <small>pp</small></span><span class="diff">Easy</span></div></div></a>
+    </div>
+    <a href="#" class="btn gh">Load 12 more</a>
+  </div>
+  <div class="pad-s bg-w"><div class="wrap">
+    <h2 class="sec">What the grades mean</h2><p class="seclead">Our grading is about consecutive days and altitude, not technical difficulty.</p>
+    <table class="pr"><thead><tr><th>Grade</th><th>Daily walking</th><th>Max altitude</th><th>Suits</th></tr></thead><tbody>
+      <tr><td>Easy</td><td class="mono">3–5 hrs</td><td class="mono">under 4,000 m</td><td>First-timers, families with teenagers</td></tr>
+      <tr><td>Moderate</td><td class="mono">5–7 hrs</td><td class="mono">4,000–5,500 m</td><td>Regular hillwalkers, no altitude experience needed</td></tr>
+      <tr><td>Challenging</td><td class="mono">6–8 hrs</td><td class="mono">5,000–5,600 m</td><td>Previous multi-day trekking, good cardio base</td></tr>
+      <tr><td>Extreme</td><td class="mono">7–10 hrs</td><td class="mono">above 5,600 m</td><td>Prior high-altitude experience required</td></tr>
+    </tbody></table>
+  </div></div>
+  <div class="pad wrap"><div class="prose" style="max-width:72ch">
+    <h2 class="sec">What you need</h2>
+    <h3>Permits</h3><p>Every trek needs a TIMS card. National park or conservation area fees vary by region and are included in our prices. Restricted areas require a licensed guide by law — not an upsell, an actual regulation.</p>
+    <h3>Fitness</h3><p>Build up to walking six hours with a daypack over consecutive days. Stair sessions and loaded hill walks in the three months before you fly matter more than gym cardio.</p>
+    <h3>Gear</h3><p>Boots broken in over at least 50 km, a four-season sleeping bag (we rent these in Pokhara), layers rather than one heavy jacket, and a duffel your porter can carry. We send a full list on booking.</p>
+  </div></div>
+  <div class="band"><div class="in"><div><h3>Which route suits you?</h3><p>Send your dates and walking background and we will shortlist two.</p></div><div class="ax"><a href="#" class="btn pri">Send an inquiry</a><a href="#" class="btn wa">WhatsApp</a></div></div></div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms · Booking policy</span></div></div></footer>
+</section>
+
+<!-- ================= TRIP DETAIL ================= -->
+<section class="screen" id="s-trip">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#" class="cur">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap"><div class="crumb"><a href="#">Home</a> / <a href="#">Nepal</a> / <a href="#">Trekking</a> / <b>Everest Base Camp Trek</b></div></div>
+  <div class="wrap"><div class="tsplit">
+    <div>
+      <h1 style="font-family:var(--d);font-size:36px;letter-spacing:-.03em;margin:0 0 16px;font-weight:700;line-height:1.1">Everest Base Camp Trek</h1>
+      <div class="facts">
+        <div><b>14</b><span>days</span></div>
+        <div><b>5,364</b><span>metres max</span></div>
+        <div><b>Moderate</b><span>grade</span></div>
+        <div><b>2–12</b><span>group size</span></div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--stone);border-radius:4px;padding:16px 18px;margin-bottom:24px">
+        <div style="font-size:11.5px;color:var(--slate-2);margin-bottom:10px">Altitude by day</div>
+        <svg width="100%" height="118" viewBox="0 0 700 118" preserveAspectRatio="none">
+          <line x1="0" y1="96" x2="700" y2="96" stroke="#E3E8EA"/>
+          <line x1="0" y1="64" x2="700" y2="64" stroke="#EEF2F3"/>
+          <line x1="0" y1="32" x2="700" y2="32" stroke="#EEF2F3"/>
+          <polygon points="0,92 50,84 100,74 150,72 200,60 250,58 300,48 350,36 400,30 450,18 500,30 550,52 600,70 650,84 700,92 700,96 0,96" fill="#DCE8ED"/>
+          <polyline points="0,92 50,84 100,74 150,72 200,60 250,58 300,48 350,36 400,30 450,18 500,30 550,52 600,70 650,84 700,92" fill="none" stroke="#7FA8B8" stroke-width="2"/>
+          <circle cx="450" cy="18" r="3.5" fill="#AE2C24"/>
+          <text x="450" y="12" text-anchor="middle" font-family="IBM Plex Mono" font-size="10" fill="#AE2C24">5,364 m</text>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-family:var(--m);font-size:10px;color:var(--slate-2);margin-top:4px"><span>Day 1 · Lukla</span><span>Day 9 · Base camp</span><span>Day 14 · Lukla</span></div>
+      </div>
+      <div class="answer">The Everest Base Camp trek costs <b>$1,395 per person</b> and takes <b>14 days</b> from Lukla and back. It reaches a maximum altitude of 5,364 m at base camp and 5,545 m at Kala Patthar. It is graded moderate: no climbing skill is needed, but you walk 5 to 7 hours on most days. The best months are late September to November and March to May.</div>
+      <div class="prose">
+        <h3>Overview</h3>
+        <p>This is the classic route into the Khumbu, following the Dudh Koshi from Lukla to Namche Bazaar, then up through Tengboche and Dingboche to Gorak Shep and base camp itself. We build in two acclimatisation days rather than one, which is the single biggest factor in whether people summit Kala Patthar feeling well or feeling wrecked.</p>
+        <p>You sleep in teahouses throughout. A porter carries the main duffel; you walk with a daypack. Group size is capped at twelve, above which we add a second guide.</p>
+        <h3>Highlights</h3>
+        <ul>
+          <li>Two acclimatisation days at Namche and Dingboche, not one</li>
+          <li>Sunrise from Kala Patthar at 5,545 m, the classic view of the Everest south face</li>
+          <li>Tengboche monastery, the largest gompa in the Khumbu</li>
+          <li>Sherpa museum at Namche and a rest-day walk to Khumjung</li>
+          <li>Flights to and from Lukla included, with a contingency day built in</li>
+        </ul>
+        <h3>Itinerary</h3>
+      </div>
+      <div class="day"><div class="hdr"><span class="n">Day 1</span><span class="ti">Fly Kathmandu to Lukla, trek to Phakding</span><span class="al">2,610 m</span></div></div>
+      <div class="day"><div class="hdr"><span class="n">Day 2</span><span class="ti">Phakding to Namche Bazaar</span><span class="al">3,440 m</span></div>
+        <div class="bdy">Cross the Hillary Suspension Bridge and climb steadily through pine forest. First view of Everest on the ridge before Namche if the cloud lifts. Six to seven hours.
+        <dl><dt>Meals</dt><dd>B, L, D</dd><dt>Stay</dt><dd>Teahouse</dd><dt>Walking</dt><dd>6–7 hrs</dd></dl></div></div>
+      <div class="day"><div class="hdr"><span class="n">Day 3</span><span class="ti">Acclimatisation day at Namche</span><span class="al">3,440 m</span></div></div>
+      <div class="day"><div class="hdr"><span class="n">Day 4</span><span class="ti">Namche to Tengboche</span><span class="al">3,860 m</span></div></div>
+      <div class="day"><div class="hdr"><span class="n">Day 5</span><span class="ti">Tengboche to Dingboche</span><span class="al">4,410 m</span></div></div>
+      <div style="text-align:center;padding:10px 0 24px"><a href="#" class="lnk">Show all 14 days</a></div>
+      <div class="prose"><h3>What the price covers</h3></div>
+      <div class="incl">
+        <div><ul>
+          <li>Airport transfers in Kathmandu</li>
+          <li>Kathmandu–Lukla return flights</li>
+          <li>All teahouse accommodation on trek</li>
+          <li>Three meals a day while trekking</li>
+          <li>Licensed English-speaking guide</li>
+          <li>Porter, one per two trekkers</li>
+          <li>TIMS card and Sagarmatha park fee</li>
+          <li>Guide and porter insurance, wages, meals</li>
+        </ul></div>
+        <div><ul class="ex">
+          <li>International flights to Kathmandu</li>
+          <li>Nepal visa fee</li>
+          <li>Travel and evacuation insurance</li>
+          <li>Kathmandu hotel and meals</li>
+          <li>Drinks, hot showers, device charging</li>
+          <li>Personal trekking gear</li>
+          <li>Tips for guide and porter</li>
+        </ul></div>
+      </div>
+      <div class="prose"><h3>Price by group size</h3><p>Smaller groups cost more per person because guide and porter costs are fixed. These are the same rates we quote by email.</p></div>
+      <table class="pr"><thead><tr><th>Group size</th><th>Price per person</th><th>Notes</th></tr></thead><tbody>
+        <tr><td>1 traveller</td><td class="mono">$1,795</td><td>Private guide throughout</td></tr>
+        <tr><td>2–4 travellers</td><td class="mono">$1,495</td><td>One guide, one porter per two</td></tr>
+        <tr><td>5–8 travellers</td><td class="mono">$1,395</td><td>Most common group size</td></tr>
+        <tr><td>9–12 travellers</td><td class="mono">$1,295</td><td>Second guide added</td></tr>
+      </tbody></table>
+      <div class="prose"><h3>Photos</h3></div>
+      <div class="gal">
+        <div><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div>
+        <div><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div>
+        <div><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div>
+        <div><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div>
+        <div><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div>
+        <div><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div>
+      </div>
+      <div class="prose"><h3>Questions about this trek</h3></div>
+      <div class="faq">
+        <div class="q"><span class="mk">−</span><div class="tx"><h4>How much does the Everest Base Camp trek cost?</h4><p>$1,395 per person for a group of five to eight, including Lukla flights, permits, teahouse accommodation and all meals on trek. Solo travellers pay $1,795. There are no hidden permit fees on the trail.</p></div></div>
+        <div class="q"><span class="mk">+</span><div class="tx"><h4>What happens if the Lukla flight is cancelled?</h4></div></div>
+        <div class="q"><span class="mk">+</span><div class="tx"><h4>Do I need oxygen?</h4></div></div>
+        <div class="q"><span class="mk">+</span><div class="tx"><h4>Is there wifi and phone signal on the route?</h4></div></div>
+      </div>
+      <div class="prose"><h3>Similar treks</h3></div>
+      <div class="g3">
+        <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><span class="alt">5,545 m</span></div><div class="bd"><h3>Gokyo Lakes &amp; EBC</h3><p class="meta">18 days</p><div class="foot"><span class="pr">$1,690 <small>pp</small></span><span class="diff hard">Challenging</span></div></div></a>
+        <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="alt">3,880 m</span></div><div class="bd"><h3>Everest View Trek</h3><p class="meta">8 days</p><div class="foot"><span class="pr">$980 <small>pp</small></span><span class="diff">Easy</span></div></div></a>
+        <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><span class="alt">6,189 m</span></div><div class="bd"><h3>Island Peak Climbing</h3><p class="meta">16 days</p><div class="foot"><span class="pr">$2,250 <small>pp</small></span><span class="diff hard">Challenging</span></div></div></a>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="pricebox">
+        <div class="from">From</div>
+        <div class="big">$1,395</div>
+        <div class="pp">per person, 5–8 travellers</div>
+        <a href="#" class="btn pri full" style="margin-bottom:8px">Request this trek</a>
+        <a href="#" class="btn wa full">Ask on WhatsApp</a>
+        <div class="note">Shown in USD. Prices in other currencies are indicative and confirmed when we reply.</div>
+      </div>
+      <div class="sideaff">
+        <div class="t">Licensed operator</div>
+        <div class="r"><span class="sq">DoT</span><span class="sq">NTB</span><span class="sq">TAAN</span><span class="sq">NMA</span></div>
+      </div>
+      <div class="pricebox" style="margin-bottom:0">
+        <div style="font-size:12.5px;font-weight:600;margin-bottom:9px">Talk to a person</div>
+        <div style="font-size:12.5px;color:var(--slate);line-height:1.8">Bishnu Gurung<br>Operations, Pokhara<br><span class="mono">+977 61 000 000</span><br>hello@treknclimb.com</div>
+      </div>
+    </aside>
+  </div></div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms · Booking policy</span></div></div></footer>
+</section>
+
+<!-- ================= ALL TRIPS ================= -->
+<section class="screen" id="s-trips">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#" class="cur">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap"><div class="crumb"><a href="#">Home</a> / <b>All trips</b></div>
+    <div class="phead"><h1>All trips</h1><p>Thirty-nine routes across four countries. Filter by what actually constrains you — days available, altitude tolerance and budget.</p></div>
+  </div>
+  <div class="wrap"><div class="fsplit">
+    <div class="fbox">
+      <div class="fgrp"><h4>Destination</h4>
+        <label><input type="checkbox" checked> Nepal <span class="cnt">24</span></label>
+        <label><input type="checkbox"> India <span class="cnt">6</span></label>
+        <label><input type="checkbox"> Tibet <span class="cnt">4</span></label>
+        <label><input type="checkbox"> Bhutan <span class="cnt">5</span></label>
+      </div>
+      <div class="fgrp"><h4>Activity <span style="font-weight:400;color:var(--slate-2);font-size:11px">Nepal only</span></h4>
+        <label><input type="checkbox" checked> Trekking <span class="cnt">16</span></label>
+        <label><input type="checkbox"> Peak climbing <span class="cnt">5</span></label>
+        <label><input type="checkbox"> Hiking <span class="cnt">3</span></label>
+      </div>
+      <div class="fgrp"><h4>Duration</h4>
+        <label><input type="checkbox"> Under 7 days <span class="cnt">4</span></label>
+        <label><input type="checkbox"> 7–12 days <span class="cnt">11</span></label>
+        <label><input type="checkbox"> 13–18 days <span class="cnt">16</span></label>
+        <label><input type="checkbox"> 19+ days <span class="cnt">8</span></label>
+      </div>
+      <div class="fgrp"><h4>Grade</h4>
+        <label><input type="checkbox"> Easy <span class="cnt">7</span></label>
+        <label><input type="checkbox" checked> Moderate <span class="cnt">18</span></label>
+        <label><input type="checkbox"> Challenging <span class="cnt">11</span></label>
+        <label><input type="checkbox"> Extreme <span class="cnt">3</span></label>
+      </div>
+      <div class="fgrp"><h4>Price per person</h4>
+        <input type="range" style="width:100%" value="60">
+        <div style="display:flex;justify-content:space-between;font-family:var(--m);font-size:11px;color:var(--slate-2)"><span>$600</span><span>$2,400</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="resbar">
+        <span class="n"><b class="mono">12</b> trips match</span>
+        <span class="chip">Nepal <b>×</b></span><span class="chip">Trekking <b>×</b></span><span class="chip">Moderate <b>×</b></span>
+        <a href="#" class="lnk" style="font-size:12px">Clear all</a>
+        <select><option>Sort: Most booked</option><option>Price, low to high</option><option>Duration, short to long</option></select>
+      </div>
+      <div class="g3">
+        <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="tag">Trekking</span><span class="alt">5,364 m</span></div><div class="bd"><h3>Everest Base Camp</h3><p class="meta">14 days · Nepal</p><div class="foot"><span class="pr">$1,395 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+        <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><span class="tag">Trekking</span><span class="alt">5,416 m</span></div><div class="bd"><h3>Annapurna Circuit</h3><p class="meta">16 days · Nepal</p><div class="foot"><span class="pr">$1,180 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+        <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><span class="tag">Trekking</span><span class="alt">4,130 m</span></div><div class="bd"><h3>Annapurna Base Camp</h3><p class="meta">11 days · Nepal</p><div class="foot"><span class="pr">$940 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+        <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="tag">Trekking</span><span class="alt">4,984 m</span></div><div class="bd"><h3>Langtang Valley</h3><p class="meta">9 days · Nepal</p><div class="foot"><span class="pr">$890 <small>pp</small></span><span class="diff">Easy</span></div></div></a>
+        <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><span class="tag">Trekking</span><span class="alt">3,210 m</span></div><div class="bd"><h3>Poon Hill Trek</h3><p class="meta">5 days · Nepal</p><div class="foot"><span class="pr">$620 <small>pp</small></span><span class="diff">Easy</span></div></div></a>
+        <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><span class="tag">Trekking</span><span class="alt">4,500 m</span></div><div class="bd"><h3>Mardi Himal</h3><p class="meta">7 days · Nepal</p><div class="foot"><span class="pr">$720 <small>pp</small></span><span class="diff">Easy</span></div></div></a>
+      </div>
+      <div style="text-align:center;padding:22px 0"><a href="#" class="btn gh">Load 6 more</a></div>
+    </div>
+  </div></div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms · Booking policy</span></div></div></footer>
+</section>
+
+<!-- ================= EMPTY FILTER ================= -->
+<section class="screen" id="s-emptyf">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#" class="cur">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap"><div class="crumb"><a href="#">Home</a> / <b>All trips</b></div><div class="phead"><h1>All trips</h1></div></div>
+  <div class="wrap"><div class="fsplit">
+    <div class="fbox">
+      <div class="fgrp"><h4>Destination</h4><label><input type="checkbox" checked> Bhutan <span class="cnt">5</span></label><label><input type="checkbox"> Nepal <span class="cnt">24</span></label></div>
+      <div class="fgrp"><h4>Duration</h4><label><input type="checkbox" checked> Under 7 days <span class="cnt">4</span></label></div>
+      <div class="fgrp"><h4>Grade</h4><label><input type="checkbox" checked> Extreme <span class="cnt">3</span></label></div>
+    </div>
+    <div>
+      <div class="resbar"><span class="n"><b class="mono">0</b> trips match</span><span class="chip">Bhutan <b>×</b></span><span class="chip">Under 7 days <b>×</b></span><span class="chip">Extreme <b>×</b></span><a href="#" class="lnk" style="font-size:12px">Clear all</a></div>
+      <div style="background:#fff;border:1px solid var(--stone);border-radius:4px">
+        <div class="empty">
+          <h3>Nothing matches all three filters</h3>
+          <p>Bhutan has no extreme-grade trips under seven days. Dropping the grade filter gives you five results.</p>
+          <a href="#" class="btn">Clear grade filter</a>
+        </div>
+      </div>
+      <div style="padding-top:28px">
+        <h2 class="sec" style="font-size:19px">Trips people book instead</h2>
+        <div class="g3" style="margin-top:16px">
+          <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><span class="alt">4,200 m</span></div><div class="bd"><h3>Druk Path Trek</h3><p class="meta">6 days · Bhutan</p><div class="foot"><span class="pr">$1,640 <small>pp</small></span><span class="diff">Moderate</span></div></div></a>
+          <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><span class="alt">4,930 m</span></div><div class="bd"><h3>Jomolhari Trek</h3><p class="meta">11 days · Bhutan</p><div class="foot"><span class="pr">$2,380 <small>pp</small></span><span class="diff hard">Challenging</span></div></div></a>
+          <a href="#" class="tcard"><div class="top"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><span class="alt">3,120 m</span></div><div class="bd"><h3>Bhutan Cultural Tour</h3><p class="meta">5 days · Bhutan</p><div class="foot"><span class="pr">$1,290 <small>pp</small></span><span class="diff">Easy</span></div></div></a>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms</span></div></div></footer>
+</section>
+
+<!-- ================= BLOG INDEX ================= -->
+<section class="screen" id="s-blog">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#" class="cur">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap"><div class="crumb"><a href="#">Home</a> / <b>Blog</b></div>
+    <div class="phead"><h1>Field notes</h1><p>Written by the guides who run these routes. Permit changes, route conditions and the questions we get asked most often by email.</p></div>
+    <a href="#" class="dcard" style="min-height:290px;margin-bottom:24px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div>
+      <div class="txt" style="padding:26px;max-width:640px"><div style="font-size:11px;color:var(--glacier);margin-bottom:8px">Permits &amp; visas</div><h3 style="font-size:29px;line-height:1.15">What the 2026 TIMS card change means for independent trekkers</h3><p style="font-size:14px;max-width:56ch">Nepal tightened the rules in April. Solo trekking without a licensed guide is now restricted on more routes than most blogs have caught up with.</p><div class="ct">12 Aug 2026 · 6 min read</div></div></a>
+    <div class="tabs"><button class="on">All posts</button><button>Destination guides</button><button>Travel tips</button><button>Trekking guides</button><button>Permits &amp; visas</button><button>Culture &amp; food</button></div>
+    <div class="g3" style="padding-bottom:16px">
+      <a href="#" class="bcard"><div class="im"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><div class="bd"><div class="cat">Trekking guides</div><h3>Manaslu or Annapurna: choosing between the two circuits</h3><p>Similar length, very different crowds, permit rules and teahouse standards.</p><div class="mt">28 Jul 2026 · 9 min</div></div></a>
+      <a href="#" class="bcard"><div class="im"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="bd"><div class="cat">Travel tips</div><h3>Altitude sickness: what our guides actually watch for</h3><p>Symptoms, the descent rule, and why we build in the extra day.</p><div class="mt">14 Jul 2026 · 7 min</div></div></a>
+      <a href="#" class="bcard"><div class="im"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><div class="bd"><div class="cat">Destination guides</div><h3>Ladakh in the monsoon months: why July works</h3><p>The rain shadow keeps Zanskar dry when Nepal is unwalkable.</p><div class="mt">02 Jul 2026 · 8 min</div></div></a>
+      <a href="#" class="bcard"><div class="im"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="bd"><div class="cat">Culture &amp; food</div><h3>What you will actually eat on a teahouse trek</h3><p>Dal bhat twice a day, and why that is a good thing at altitude.</p><div class="mt">19 Jun 2026 · 5 min</div></div></a>
+      <a href="#" class="bcard"><div class="im"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><div class="bd"><div class="cat">Travel tips</div><h3>Boots, layers and the gear people waste money on</h3><p>A packing list built from twenty years of watching what stays in the duffel.</p><div class="mt">05 Jun 2026 · 11 min</div></div></a>
+      <a href="#" class="bcard"><div class="im"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><div class="bd"><div class="cat">Trekking guides</div><h3>Lukla flights: how the cancellations really work</h3><p>Weather windows, the helicopter option, and how to build slack into your dates.</p><div class="mt">21 May 2026 · 6 min</div></div></a>
+    </div>
+    <div style="text-align:center;padding:8px 0 40px"><a href="#" class="btn gh">Older posts</a></div>
+  </div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms</span></div></div></footer>
+</section>
+
+<!-- ================= BLOG POST ================= -->
+<section class="screen" id="s-post">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#" class="cur">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap"><div class="crumb"><a href="#">Home</a> / <a href="#">Blog</a> / <a href="#">Travel tips</a> / <b>Altitude sickness</b></div></div>
+  <div class="wrap" style="max-width:800px">
+    <div style="padding:8px 0 20px">
+      <div style="font-size:11.5px;color:var(--crimson);margin-bottom:10px">Travel tips</div>
+      <h1 style="font-family:var(--d);font-size:38px;letter-spacing:-.03em;line-height:1.1;margin:0 0 14px;font-weight:700">Altitude sickness: what our guides actually watch for</h1>
+      <div style="font-family:var(--m);font-size:11.5px;color:var(--slate-2)">Published 14 Jul 2026 · Updated 03 Sep 2026 · 7 min read · Bishnu Gurung</div>
+    </div>
+    <div style="height:260px;border-radius:4px;overflow:hidden;background:var(--ink);margin-bottom:26px"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div>
+    <div class="prose" style="padding-bottom:30px">
+      <p style="font-size:16px">Every guide we employ has turned a group around at some point. It is the least popular decision in the job and the only one that matters. Here is what we are watching for, and what you should tell us even when you would rather not.</p>
+      <h3>The three-symptom rule</h3>
+      <p>Acute mountain sickness starts as a headache that paracetamol does not fully clear, plus any one of nausea, dizziness, unusual breathlessness at rest or broken sleep. One symptom on its own is common and usually resolves. Two or more that persist through a rest day is our threshold for descent.</p>
+      <p>The reason we ask about sleep every morning is that poor sleep is the earliest reliable signal, and the one people dismiss as jet lag or an uncomfortable teahouse mattress.</p>
+      <h3>Why our itineraries look slower than the competition</h3>
+      <p>A twelve-day Everest Base Camp itinerary exists and people sell it. It works for perhaps seven in ten trekkers. Our fourteen-day version adds acclimatisation days at Namche and Dingboche, which moves that number close to nine in ten. Two days is a small price for the difference between reaching base camp and being evacuated from Pheriche.</p>
+      <h3>What we carry</h3>
+      <ul>
+        <li>A pulse oximeter, checked every evening above 3,500 m</li>
+        <li>Acetazolamide, for guide-supervised use only</li>
+        <li>Satellite phone on restricted-area routes</li>
+        <li>Evacuation contacts pre-arranged with the insurer before departure</li>
+      </ul>
+      <h3>The descent rule</h3>
+      <p>Descent is the only reliable treatment. Oxygen and medication buy time to descend; they are not a substitute for it. If a guide calls it, the group does not vote.</p>
+    </div>
+    <div style="background:var(--glacier-lo);border-radius:4px;padding:20px;margin-bottom:30px">
+      <div style="font-size:12px;color:var(--slate);margin-bottom:12px">Treks with extra acclimatisation days built in</div>
+      <div class="g3">
+        <a href="#" class="tcard"><div class="bd" style="padding:12px"><h3 style="font-size:14px">Everest Base Camp</h3><p class="meta" style="margin:0">14 days · $1,395</p></div></a>
+        <a href="#" class="tcard"><div class="bd" style="padding:12px"><h3 style="font-size:14px">Manaslu Circuit</h3><p class="meta" style="margin:0">14 days · $1,490</p></div></a>
+        <a href="#" class="tcard"><div class="bd" style="padding:12px"><h3 style="font-size:14px">Island Peak</h3><p class="meta" style="margin:0">16 days · $2,250</p></div></a>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--stone);border-bottom:1px solid var(--stone);padding:20px 0;display:flex;gap:14px;align-items:center;margin-bottom:30px">
+      <div style="width:46px;height:46px;border-radius:50%;background:var(--glacier);color:#fff;display:grid;place-items:center;font-weight:600">BG</div>
+      <div style="font-size:13px;line-height:1.6"><b>Bishnu Gurung</b><br><span style="color:var(--slate)">Operations lead, Pokhara. Twenty-two seasons in the Annapurna and Khumbu regions.</span></div>
+    </div>
+    <h2 class="sec" style="font-size:19px">Read next</h2>
+    <div class="g3" style="padding:14px 0 40px">
+      <a href="#" class="bcard"><div class="bd"><div class="cat">Trekking guides</div><h3>Lukla flights: how the cancellations really work</h3><div class="mt">21 May 2026</div></div></a>
+      <a href="#" class="bcard"><div class="bd"><div class="cat">Travel tips</div><h3>Boots, layers and the gear people waste money on</h3><div class="mt">05 Jun 2026</div></div></a>
+      <a href="#" class="bcard"><div class="bd"><div class="cat">Permits &amp; visas</div><h3>What the 2026 TIMS card change means</h3><div class="mt">12 Aug 2026</div></div></a>
+    </div>
+  </div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms</span></div></div></footer>
+</section>
+
+<!-- ================= CONTACT ================= -->
+<section class="screen" id="s-contact">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#" class="cur">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap"><div class="crumb"><a href="#">Home</a> / <b>Contact</b></div>
+    <div class="phead"><h1>Send us the details</h1><p>The more you tell us about your dates and walking background, the more useful our first reply will be. We answer within four hours during Nepal office hours.</p></div>
+    <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:30px;padding-bottom:44px" class="g2">
+      <div class="form">
+        <div class="f2"><div class="fld"><label>Your name</label><input placeholder="Hannah Meyer"></div><div class="fld"><label>Email</label><input placeholder="you@example.com"></div></div>
+        <div class="f2"><div class="fld"><label>Phone or WhatsApp</label><input placeholder="+49 …"></div><div class="fld"><label>Which trip?</label><select><option>Everest Base Camp Trek</option><option>Annapurna Circuit</option><option>Not sure yet</option></select></div></div>
+        <div class="f2"><div class="fld"><label>Preferred start date</label><input placeholder="dd / mm / yyyy"></div><div class="fld"><label>Number of travellers</label><input value="2" class="mono"></div></div>
+        <div class="fld"><label>How should we reply?</label><div class="radio-row"><label class="sel">Email</label><label>WhatsApp</label><label>Either</label></div></div>
+        <div class="fld"><label>Anything we should know</label><textarea placeholder="Previous trekking, fitness, altitude experience, fixed dates, dietary needs…"></textarea></div>
+        <div style="font-size:11px;color:var(--slate-2);margin-bottom:14px;line-height:1.6">Protected by Cloudflare Turnstile. We use your details only to answer this inquiry — see our <a href="#" style="color:var(--crimson)">privacy policy</a>.</div>
+        <button class="btn pri">Send inquiry</button>
+      </div>
+      <div>
+        <div class="form" style="margin-bottom:14px">
+          <h3 style="font-family:var(--d);font-size:16px;margin:0 0 14px;font-weight:600">Office</h3>
+          <div style="font-size:13.5px;line-height:1.9;color:var(--ink-2)">Lakeside Road, Ward 6<br>Pokhara 33700, Nepal<br><span class="mono">+977 61 000 000</span><br>hello@treknclimb.com</div>
+          <div style="border-top:1px solid var(--stone);margin:14px 0;padding-top:14px;font-size:12.5px;color:var(--slate);line-height:1.8">Sun–Fri, 9:00–18:00 NPT<br>Saturday by appointment</div>
+          <a href="#" class="btn wa full">Message on WhatsApp</a>
+        </div>
+        <div style="height:180px;border-radius:4px;overflow:hidden;background:var(--stone);position:relative;margin-bottom:14px">
+          <svg viewBox="0 0 400 180" style="width:100%;height:100%"><rect width="400" height="180" fill="#E3E8EA"/><path d="M0 120 L120 106 L230 130 L400 100" stroke="#CFD8DC" stroke-width="18" fill="none"/><path d="M150 0 L166 180" stroke="#CFD8DC" stroke-width="12" fill="none"/><circle cx="196" cy="96" r="8" fill="#AE2C24"/><circle cx="196" cy="96" r="16" fill="#AE2C24" opacity=".2"/></svg>
+        </div>
+        <div class="sideaff"><div class="t">Licensed and registered</div><div class="r"><span class="sq">DoT</span><span class="sq">NTB</span><span class="sq">TAAN</span><span class="sq">NMA</span></div></div>
+      </div>
+    </div>
+    <div style="padding-bottom:44px">
+      <h2 class="sec" style="font-size:19px">Before you write</h2>
+      <div class="faq" style="margin-top:16px">
+        <div class="q"><span class="mk">−</span><div class="tx"><h4>How quickly will you reply?</h4><p>Within four hours during office hours, and by the next morning otherwise. If you have not heard back in 24 hours, message the WhatsApp number — email occasionally gets filtered.</p></div></div>
+        <div class="q"><span class="mk">+</span><div class="tx"><h4>Can I book without paying a deposit now?</h4></div></div>
+        <div class="q"><span class="mk">+</span><div class="tx"><h4>Do you arrange trips for a single traveller?</h4></div></div>
+      </div>
+    </div>
+  </div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms</span></div></div></footer>
+</section>
+
+<!-- ================= FAQ ================= -->
+<section class="screen" id="s-faq">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap"><div class="crumb"><a href="#">Home</a> / <b>FAQ</b></div>
+    <div class="phead"><h1>Questions we get by email</h1><p>Grouped by what people actually ask. If yours is not here, the WhatsApp number is answered by a person in Pokhara.</p></div>
+    <div class="tabs"><button class="on">Booking</button><button>Trekking</button><button>Permits &amp; visas</button><button>Payments</button><button>Safety</button></div>
+    <div class="faq" style="margin-bottom:34px">
+      <div class="q"><span class="mk">−</span><div class="tx"><h4>How do I book a trip?</h4><p>Send an inquiry with your dates. We reply with a confirmed itinerary and price, then hold the dates for seven days. A 20 percent deposit confirms the booking; the balance is due on arrival in Nepal.</p></div></div>
+      <div class="q"><span class="mk">−</span><div class="tx"><h4>What is your cancellation policy?</h4><p>Deposits are refundable up to 45 days before departure, less bank charges. Between 45 and 15 days the deposit is held as credit for 24 months. Inside 15 days the deposit is retained, because permits and flights are already paid.</p></div></div>
+      <div class="q"><span class="mk">+</span><div class="tx"><h4>Can I change my dates after booking?</h4></div></div>
+      <div class="q"><span class="mk">+</span><div class="tx"><h4>Do you run fixed departures or private trips?</h4></div></div>
+      <div class="q"><span class="mk">+</span><div class="tx"><h4>Is there a minimum group size?</h4></div></div>
+      <div class="q"><span class="mk">+</span><div class="tx"><h4>Can you arrange the Kathmandu hotel as well?</h4></div></div>
+    </div>
+    <div class="band" style="border-radius:4px;margin-bottom:44px"><div class="in" style="padding:0 26px"><div><h3>Still not answered?</h3><p>A person in Pokhara reads every message, usually within four hours.</p></div><div class="ax"><a href="#" class="btn pri">Send an inquiry</a><a href="#" class="btn wa">WhatsApp</a></div></div></div>
+  </div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms</span></div></div></footer>
+</section>
+
+<!-- ================= ABOUT ================= -->
+<section class="screen" id="s-about">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#">Trips</a><a href="#" class="cur">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="hero"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div>
+    <div class="in" style="padding-top:52px;padding-bottom:58px"><h1 style="font-size:42px;max-width:18ch">Run from Pokhara since 2004</h1><p>Twelve full-time staff, thirty-one guides on the books, and no subcontracting to a third agency once you land.</p></div>
+  </div>
+  <div class="pad wrap"><div class="g2">
+    <div class="prose"><h2 class="sec">How this started</h2>
+      <p>Bishnu Gurung guided for other companies for eight seasons before starting this one, mostly because he was tired of explaining to clients why the itinerary they bought in Europe did not match the mountain they were standing on.</p>
+      <p>The company has stayed deliberately small. We turn down more work than we take, because the alternative is handing groups to agencies we have not vetted. Every guide who meets you at the airport is on our payroll, insured by us, and has walked your route before.</p>
+    </div>
+    <div class="prose"><h2 class="sec">What we will not do</h2>
+      <ul>
+        <li>Sell a twelve-day Everest Base Camp itinerary because a competitor does</li>
+        <li>Run groups above twelve without a second guide</li>
+        <li>Quote a price that excludes permits and then collect cash on the trail</li>
+        <li>Subcontract a booking to another operator without telling you first</li>
+      </ul>
+    </div>
+  </div></div>
+  <div class="pad-s bg-w"><div class="wrap">
+    <h2 class="sec">Registered and recognized by</h2><p class="seclead">All four registrations are current and verifiable at the linked organisations.</p>
+    <div class="g2">
+      <a href="https://tourism.gov.np/" style="display:flex;gap:14px;text-decoration:none;background:var(--paper);border:1px solid var(--stone);border-radius:4px;padding:16px">
+        <span class="sq" style="width:44px;height:44px;border:1px solid var(--stone-2);border-radius:2px;display:grid;place-items:center;font-family:var(--d);font-size:11px;font-weight:700;color:var(--slate);background:#fff;flex-shrink:0">DoT</span>
+        <span style="font-size:13px;line-height:1.6"><b style="display:block;font-size:14px">Department of Tourism</b><span style="color:var(--slate)">Government of Nepal · Trekking agency licence</span><br><span class="mono" style="font-size:11.5px">Reg. 178942/061/062</span></span></a>
+      <a href="https://ntb.gov.np/" style="display:flex;gap:14px;text-decoration:none;background:var(--paper);border:1px solid var(--stone);border-radius:4px;padding:16px">
+        <span class="sq" style="width:44px;height:44px;border:1px solid var(--stone-2);border-radius:2px;display:grid;place-items:center;font-family:var(--d);font-size:11px;font-weight:700;color:var(--slate);background:#fff;flex-shrink:0">NTB</span>
+        <span style="font-size:13px;line-height:1.6"><b style="display:block;font-size:14px">Nepal Tourism Board</b><span style="color:var(--slate)">Registered tour operator</span><br><span class="mono" style="font-size:11.5px">Licence 2043/78</span></span></a>
+      <a href="https://taanpokhara.org/" style="display:flex;gap:14px;text-decoration:none;background:var(--paper);border:1px solid var(--stone);border-radius:4px;padding:16px">
+        <span class="sq" style="width:44px;height:44px;border:1px solid var(--stone-2);border-radius:2px;display:grid;place-items:center;font-family:var(--d);font-size:10px;font-weight:700;color:var(--slate);background:#fff;flex-shrink:0">TAAN</span>
+        <span style="font-size:13px;line-height:1.6"><b style="display:block;font-size:14px">Trekking Agencies' Association of Nepal</b><span style="color:var(--slate)">Pokhara chapter member</span><br><span class="mono" style="font-size:11.5px">Member 1428</span></span></a>
+      <a href="https://www.nepalmountaineering.org/" style="display:flex;gap:14px;text-decoration:none;background:var(--paper);border:1px solid var(--stone);border-radius:4px;padding:16px">
+        <span class="sq" style="width:44px;height:44px;border:1px solid var(--stone-2);border-radius:2px;display:grid;place-items:center;font-family:var(--d);font-size:11px;font-weight:700;color:var(--slate);background:#fff;flex-shrink:0">NMA</span>
+        <span style="font-size:13px;line-height:1.6"><b style="display:block;font-size:14px">Nepal Mountaineering Association</b><span style="color:var(--slate)">Trekking peak permit authority</span><br><span class="mono" style="font-size:11.5px">Member since 2009</span></span></a>
+    </div>
+  </div></div>
+  <div class="pad wrap">
+    <h2 class="sec">Who you will meet</h2><p class="seclead">The office team in Pokhara and the guides who lead most departures.</p>
+    <div class="g4">
+      <div><div style="height:150px;background:var(--ink);border-radius:4px;overflow:hidden;margin-bottom:11px"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><b style="font-size:14px">Bishnu Gurung</b><div style="font-size:12.5px;color:var(--slate);line-height:1.6">Founder · 22 seasons in Khumbu and Annapurna</div></div>
+      <div><div style="height:150px;background:var(--ink);border-radius:4px;overflow:hidden;margin-bottom:11px"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><b style="font-size:14px">Sunita Thapa</b><div style="font-size:12.5px;color:var(--slate);line-height:1.6">Bookings · Answers most of your email</div></div>
+      <div><div style="height:150px;background:var(--ink);border-radius:4px;overflow:hidden;margin-bottom:11px"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><b style="font-size:14px">Pemba Sherpa</b><div style="font-size:12.5px;color:var(--slate);line-height:1.6">Lead climbing guide · NMA certified</div></div>
+      <div><div style="height:150px;background:var(--ink);border-radius:4px;overflow:hidden;margin-bottom:11px"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><b style="font-size:14px">Maya Rai</b><div style="font-size:12.5px;color:var(--slate);line-height:1.6">Trekking guide · Langtang and Manaslu</div></div>
+    </div>
+  </div>
+  <div class="pad-s bg-st"><div class="wrap"><div class="g3">
+    <div><h3 style="font-family:var(--d);font-size:17px;margin:0 0 8px;font-weight:600">Insurance and evacuation</h3><p style="font-size:13.5px;color:var(--slate);line-height:1.7;margin:0">Every guide and porter is insured by us. We pre-arrange helicopter evacuation contacts with your insurer before departure, not during an emergency.</p></div>
+    <div><h3 style="font-family:var(--d);font-size:17px;margin:0 0 8px;font-weight:600">Guide certification</h3><p style="font-size:13.5px;color:var(--slate);line-height:1.7;margin:0">All guides hold government trekking licences and current wilderness first aid. Climbing guides are NMA certified.</p></div>
+    <div><h3 style="font-family:var(--d);font-size:17px;margin:0 0 8px;font-weight:600">Porter welfare</h3><p style="font-size:13.5px;color:var(--slate);line-height:1.7;margin:0">Weight limits enforced at 20 kg, proper clothing and footwear provided, and the same insurance cover as guides.</p></div>
+  </div></div></div>
+  <div class="band"><div class="in"><div><h3>Come walk with us</h3><p>Tell us your dates and we will tell you honestly whether the route fits.</p></div><div class="ax"><a href="#" class="btn pri">Send an inquiry</a><a href="#" class="btn wa">WhatsApp</a></div></div></div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms</span></div></div></footer>
+</section>
+
+<!-- ================= PRIVACY ================= -->
+<section class="screen" id="s-privacy">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><select class="cur-sel"><option>USD $</option></select><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap"><div class="crumb"><a href="#">Home</a> / <b>Privacy policy</b></div>
+    <div class="phead"><h1>Privacy policy</h1><p class="mono" style="font-size:12px;color:var(--slate-2)">Last updated 03 September 2026</p></div>
+    <div class="legal">
+      <nav class="toc">
+        <a href="#" class="on">What we collect</a>
+        <a href="#">Why we collect it</a>
+        <a href="#">How long we keep it</a>
+        <a href="#">Who else sees it</a>
+        <a href="#">Cookies</a>
+        <a href="#">Your rights</a>
+        <a href="#">Contact us</a>
+      </nav>
+      <div class="prose">
+        <h3>What we collect</h3>
+        <p>When you send an inquiry we collect your name, email address, phone number, preferred travel dates, group size and whatever you write in the message field. We do not collect payment details through this website — there is no checkout.</p>
+        <p>If you allow analytics cookies, we also receive anonymised information about which pages you visited and roughly where in the world you were.</p>
+        <h3>Why we collect it</h3>
+        <p>To answer your inquiry and, if you book, to arrange permits and internal flights that legally require your passport details. We ask for those separately, by email, after you confirm.</p>
+        <h3>How long we keep it</h3>
+        <p>Inquiries that do not become bookings are deleted after 24 months. Booking records are kept for seven years because Nepali tax law requires it.</p>
+        <h3>Who else sees it</h3>
+        <p>Our email is delivered by Resend, our database is hosted by MongoDB Atlas, images by Cloudinary, and spam filtering by Cloudflare. Google Analytics receives page-view data only if you consented. We do not sell data to anyone and we do not share your inquiry with other operators.</p>
+        <h3>Cookies</h3>
+        <p>Essential cookies keep the site working and remember your currency choice. Analytics cookies are off until you allow them in the banner, and you can change that decision at any time from the footer.</p>
+        <h3>Your rights</h3>
+        <p>You can ask us what we hold about you, ask for corrections, or ask us to delete it. Email hello@treknclimb.com and we will respond within 30 days.</p>
+        <h3>Contact us</h3>
+        <p>Trek &amp; Climb Adventure Pvt. Ltd., Lakeside Road Ward 6, Pokhara 33700, Nepal. hello@treknclimb.com</p>
+      </div>
+    </div>
+  </div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms · Booking policy</span></div></div></footer>
+</section>
+
+<!-- ================= 404 ================= -->
+<section class="screen" id="s-e404">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><div class="rt"><a href="#" class="btn pri sm">Plan your trek</a></div><button class="burger">☰</button></div></header>
+  <div class="wrap">
+    <div class="err">
+      <div class="code">404</div>
+      <h1>This page has moved on</h1>
+      <p>The link may be from our old site. Search for the trek you were after, or start from a region.</p>
+      <div class="searchbar" style="max-width:460px;margin:0 auto 26px;border:1px solid var(--stone-2)"><input placeholder="Search treks and blog posts…"><button class="btn pri">Search</button></div>
+      <div class="g4" style="text-align:left">
+        <a href="#" class="dcard" style="min-height:130px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div><div class="txt"><h3 style="font-size:17px">Nepal</h3></div></a>
+        <a href="#" class="dcard" style="min-height:130px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="txt"><h3 style="font-size:17px">India</h3></div></a>
+        <a href="#" class="dcard" style="min-height:130px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg></div><div class="txt"><h3 style="font-size:17px">Tibet</h3></div></a>
+        <a href="#" class="dcard" style="min-height:130px"><div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div><div class="txt"><h3 style="font-size:17px">Bhutan</h3></div></a>
+      </div>
+    </div>
+  </div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms</span></div></div></footer>
+</section>
+
+<!-- ================= 500 ================= -->
+<section class="screen" id="s-e500">
+  <header class="hd"><div class="in"><div class="logo">TREK &amp; CLIMB<span>ADVENTURE · POKHARA</span></div><nav><a href="#">Destinations</a><a href="#">Trips</a><a href="#">About</a><a href="#">Blog</a><a href="#">Contact</a></nav><button class="burger">☰</button></div></header>
+  <div class="wrap">
+    <div class="err">
+      <div class="code">500</div>
+      <h1>Something broke on our side</h1>
+      <p>Not your fault, and we have been notified. If you were partway through an inquiry, WhatsApp reaches the Pokhara office directly and nothing is lost.</p>
+      <div style="display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:22px">
+        <a href="#" class="btn wa">Message on WhatsApp</a>
+        <a href="#" class="btn gh">Try again</a>
+        <a href="#" class="btn gh">Back to home</a>
+      </div>
+      <div style="font-family:var(--m);font-size:12px;color:var(--slate-2)">+977 61 000 000 · hello@treknclimb.com</div>
+    </div>
+  </div>
+  <footer class="ft"><div class="in"><div class="btm"><span>© 2026 Trek &amp; Climb Adventure Pvt. Ltd.</span><span>Privacy policy · Terms</span></div></div></footer>
+</section>
+
+<!-- ================= ADMIN LOGIN ================= -->
+<section class="screen" id="s-alogin">
+  <div class="login">
+    <div class="art"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div>
+    <div class="loginbox">
+      <div class="lg">TREK &amp; CLIMB</div>
+      <div class="sb">Content management</div>
+      <div class="alert">Wrong email or password. Three attempts left before this account locks for 30 minutes.</div>
+      <div class="fld"><label>Email</label><input value="bishnu@treknclimb.com"></div>
+      <div class="fld"><label>Password</label><input type="password" value="••••••••••"></div>
+      <button class="btn pri full" style="margin-top:6px">Sign in</button>
+      <div style="text-align:center;margin-top:14px"><a href="#" style="font-size:12.5px;color:var(--slate)">Forgot your password?</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ADMIN DASHBOARD ================= -->
+<section class="screen" id="s-adash">
+  <div class="adm">
+    <nav class="aside">
+      <div class="lg">TREK &amp; CLIMB</div>
+      <div class="gp">OVERVIEW</div>
+      <a href="#" class="on">Dashboard</a>
+      <a href="#">Booking inquiries <span class="bg">7</span></a>
+      <div class="gp">CONTENT</div>
+      <a href="#">Trips</a><a href="#">Activities</a><a href="#">Destinations</a><a href="#">Blog posts</a><a href="#">Categories</a><a href="#">Testimonials</a><a href="#">FAQs</a>
+      <div class="gp">SITE</div>
+      <a href="#">Media</a><a href="#">Exchange rates</a><a href="#">Redirects</a><a href="#">Settings</a>
+    </nav>
+    <div>
+      <div class="atop"><h2>Dashboard</h2><div class="rt"><span>Sunday, 6 Sep</span><span class="who">BG</span></div></div>
+      <div class="abody">
+        <div class="warnrow"><b>Exchange rates are 9 days old.</b> Prices shown in EUR, GBP and AUD may be off. <a href="#" style="color:#7A5A12;margin-left:auto">Refresh now</a></div>
+        <div class="stats">
+          <div class="stat"><div class="n">39</div><div class="l">Trips total</div><div class="d">34 published · 5 draft</div></div>
+          <div class="stat"><div class="n">7</div><div class="l">New inquiries</div><div class="d">3 today</div></div>
+          <div class="stat"><div class="n">18</div><div class="l">Inquiries this month</div><div class="d">+4 vs August</div></div>
+          <div class="stat"><div class="n">42</div><div class="l">Blog posts</div><div class="d">Last published 12 Aug</div></div>
+        </div>
+        <div class="card">
+          <div class="ch"><h3>Recent inquiries</h3><a href="#" class="act" style="margin-left:auto">View all</a></div>
+          <div class="cb flush"><table class="dt">
+            <thead><tr><th>Reference</th><th>Name</th><th>Trip</th><th>Travellers</th><th>Received</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="mono">TNC-2026-0417</td><td>Hannah Meyer</td><td>Everest Base Camp</td><td class="mono">2</td><td>2 hrs ago</td><td><span class="pill new">New</span></td><td><a href="#" class="act">Open</a></td></tr>
+              <tr><td class="mono">TNC-2026-0416</td><td>David Rowe</td><td>Annapurna Circuit</td><td class="mono">4</td><td>5 hrs ago</td><td><span class="pill new">New</span></td><td><a href="#" class="act">Open</a></td></tr>
+              <tr><td class="mono">TNC-2026-0415</td><td>Sofia Klein</td><td>Not specified</td><td class="mono">1</td><td>Yesterday</td><td><span class="pill con">Contacted</span></td><td><a href="#" class="act">Open</a></td></tr>
+              <tr><td class="mono">TNC-2026-0414</td><td>James Whitfield</td><td>Island Peak</td><td class="mono">2</td><td>Yesterday</td><td><span class="pill con">Contacted</span></td><td><a href="#" class="act">Open</a></td></tr>
+              <tr><td class="mono">TNC-2026-0413</td><td>Marta Rossi</td><td>Manaslu Circuit</td><td class="mono">6</td><td>2 days ago</td><td><span class="pill new">New</span></td><td><a href="#" class="act">Open</a></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="g2">
+          <div class="card"><div class="ch"><h3>Quick actions</h3></div><div class="cb">
+            <a href="#" class="btn sm" style="margin-right:7px">New trip</a>
+            <a href="#" class="btn gh sm" style="margin-right:7px">New blog post</a>
+            <a href="#" class="btn gh sm">Upload media</a>
+          </div></div>
+          <div class="card"><div class="ch"><h3>Needs attention</h3></div><div class="cb" style="font-size:13px;line-height:2;color:var(--slate)">
+            <div>5 trips are still in draft</div>
+            <div>2 gallery images are missing alt text</div>
+            <div>1 legacy URL returned 404 this week</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ADMIN TRIPS ================= -->
+<section class="screen" id="s-atrips">
+  <div class="adm">
+    <nav class="aside">
+      <div class="lg">TREK &amp; CLIMB</div>
+      <div class="gp">OVERVIEW</div><a href="#">Dashboard</a><a href="#">Booking inquiries <span class="bg">7</span></a>
+      <div class="gp">CONTENT</div><a href="#" class="on">Trips</a><a href="#">Activities</a><a href="#">Destinations</a><a href="#">Blog posts</a><a href="#">Categories</a><a href="#">Testimonials</a><a href="#">FAQs</a>
+      <div class="gp">SITE</div><a href="#">Media</a><a href="#">Exchange rates</a><a href="#">Redirects</a><a href="#">Settings</a>
+    </nav>
+    <div>
+      <div class="atop"><h2>Trips</h2><div class="rt"><a href="#" class="btn pri sm">New trip</a><span class="who">BG</span></div></div>
+      <div class="abody">
+        <div class="card">
+          <div class="ch" style="gap:8px;flex-wrap:wrap">
+            <input placeholder="Search trips…" style="border:1px solid var(--stone-2);border-radius:3px;padding:6px 10px;font:inherit;font-size:12.5px;width:190px">
+            <select style="border:1px solid var(--stone-2);border-radius:3px;padding:6px 9px;font:inherit;font-size:12.5px"><option>All destinations</option><option>Nepal</option></select>
+            <select style="border:1px solid var(--stone-2);border-radius:3px;padding:6px 9px;font:inherit;font-size:12.5px"><option>All activities</option></select>
+            <select style="border:1px solid var(--stone-2);border-radius:3px;padding:6px 9px;font:inherit;font-size:12.5px"><option>All statuses</option></select>
+            <span style="margin-left:auto;font-size:12px;color:var(--slate)" class="mono">39 trips</span>
+          </div>
+          <div class="cb flush"><table class="dt">
+            <thead><tr><th>Title</th><th>Destination</th><th>Activity</th><th>Days</th><th>From</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><b>Everest Base Camp Trek</b></td><td>Nepal</td><td>Trekking</td><td class="mono">14</td><td class="mono">$1,395</td><td><span class="pill pub">Published</span></td><td>2 days ago</td><td><a href="#" class="act">Edit</a><a href="#" class="act">Duplicate</a></td></tr>
+              <tr><td><b>Annapurna Circuit Trek</b></td><td>Nepal</td><td>Trekking</td><td class="mono">16</td><td class="mono">$1,180</td><td><span class="pill pub">Published</span></td><td>6 days ago</td><td><a href="#" class="act">Edit</a><a href="#" class="act">Duplicate</a></td></tr>
+              <tr><td><b>Island Peak Climbing</b></td><td>Nepal</td><td>Peak climbing</td><td class="mono">16</td><td class="mono">$2,250</td><td><span class="pill pub">Published</span></td><td>1 week ago</td><td><a href="#" class="act">Edit</a><a href="#" class="act">Duplicate</a></td></tr>
+              <tr><td><b>Upper Mustang Trek</b></td><td>Nepal</td><td>Trekking</td><td class="mono">17</td><td class="mono">$2,180</td><td><span class="pill dr">Draft</span></td><td>3 hrs ago</td><td><a href="#" class="act">Edit</a><a href="#" class="act">Duplicate</a></td></tr>
+              <tr><td><b>Markha Valley Trek</b></td><td>India</td><td style="color:var(--slate-2)">—</td><td class="mono">11</td><td class="mono">$1,240</td><td><span class="pill pub">Published</span></td><td>2 weeks ago</td><td><a href="#" class="act">Edit</a><a href="#" class="act">Duplicate</a></td></tr>
+              <tr><td><b>Mount Kailash Kora</b></td><td>Tibet</td><td style="color:var(--slate-2)">—</td><td class="mono">13</td><td class="mono">$2,390</td><td><span class="pill pub">Published</span></td><td>3 weeks ago</td><td><a href="#" class="act">Edit</a><a href="#" class="act">Duplicate</a></td></tr>
+              <tr><td><b>Tsum Valley Trek</b></td><td>Nepal</td><td>Trekking</td><td class="mono">15</td><td class="mono">$1,540</td><td><span class="pill ar">Archived</span></td><td>2 months ago</td><td><a href="#" class="act">Edit</a><a href="#" class="act">Restore</a></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ADMIN TRIP EDITOR ================= -->
+<section class="screen" id="s-aedit">
+  <div class="adm">
+    <nav class="aside">
+      <div class="lg">TREK &amp; CLIMB</div>
+      <div class="gp">OVERVIEW</div><a href="#">Dashboard</a><a href="#">Booking inquiries <span class="bg">7</span></a>
+      <div class="gp">CONTENT</div><a href="#" class="on">Trips</a><a href="#">Activities</a><a href="#">Destinations</a><a href="#">Blog posts</a><a href="#">Categories</a><a href="#">Testimonials</a><a href="#">FAQs</a>
+      <div class="gp">SITE</div><a href="#">Media</a><a href="#">Exchange rates</a><a href="#">Redirects</a><a href="#">Settings</a>
+    </nav>
+    <div>
+      <div class="atop"><h2>Everest Base Camp Trek</h2><div class="rt"><span class="pill pub">Published</span><span class="who">BG</span></div></div>
+      <div class="abody">
+        <div class="savebar">
+          <span class="st">Saved 4 minutes ago</span>
+          <div class="ax"><a href="#" class="btn gh sm">Preview</a><a href="#" class="btn gh sm">Unpublish</a><a href="#" class="btn pri sm">Save changes</a></div>
+        </div>
+        <div class="atabs">
+          <button>Basic</button><button>Facts</button><button class="on">Pricing</button><button>Itinerary</button><button>Includes</button><button>Gallery</button><button>FAQs</button><button>SEO</button>
+        </div>
+
+        <div class="card"><div class="ch"><h3>Headline price</h3></div><div class="cb">
+          <div class="f2">
+            <div class="fld"><label>Base price, USD</label><input value="1395" class="mono"><div class="hint">Shown on cards, listings and in structured data</div></div>
+            <div class="fld"><label>Discounted price, USD</label><input placeholder="Leave empty if none" class="mono"></div>
+          </div>
+          <div class="f2">
+            <div class="fld"><label>Price label</label><input value="From $1,395 per person"></div>
+            <div class="fld"><label>Basis</label><select><option>Per person</option><option>Per group</option></select></div>
+          </div>
+        </div></div>
+
+        <div class="card"><div class="ch"><h3>Price by group size</h3><span style="margin-left:auto;font-size:11.5px;color:var(--slate)">Tiers must not overlap</span></div><div class="cb">
+          <div class="tierrow" style="font-size:11px;color:var(--slate)"><span>From travellers</span><span>To travellers</span><span>Price per person, USD</span><span></span></div>
+          <div class="tierrow"><input value="1" class="mono"><input value="1" class="mono"><input value="1795" class="mono"><a href="#" style="color:var(--crimson);text-decoration:none;text-align:center">×</a></div>
+          <div class="tierrow"><input value="2" class="mono"><input value="4" class="mono"><input value="1495" class="mono"><a href="#" style="color:var(--crimson);text-decoration:none;text-align:center">×</a></div>
+          <div class="tierrow"><input value="5" class="mono"><input value="8" class="mono"><input value="1395" class="mono"><a href="#" style="color:var(--crimson);text-decoration:none;text-align:center">×</a></div>
+          <div class="tierrow"><input value="9" class="mono"><input value="12" class="mono"><input value="1295" class="mono"><a href="#" style="color:var(--crimson);text-decoration:none;text-align:center">×</a></div>
+          <a href="#" class="btn gh sm" style="margin-top:6px">Add tier</a>
+        </div></div>
+
+        <div class="card"><div class="ch"><h3>Itinerary</h3><span style="margin-left:auto;font-size:11.5px;color:var(--slate)" class="mono">14 days</span></div><div class="cb">
+          <div class="dayrow"><span class="gr">⣿</span><div class="fs"><input value="1" class="mono"><input value="Fly Kathmandu to Lukla, trek to Phakding"><input value="2610" class="mono" placeholder="metres"></div></div>
+          <div class="dayrow"><span class="gr">⣿</span><div class="fs"><input value="2" class="mono"><input value="Phakding to Namche Bazaar"><input value="3440" class="mono"></div></div>
+          <div class="dayrow"><span class="gr">⣿</span><div class="fs"><input value="3" class="mono"><input value="Acclimatisation day at Namche"><input value="3440" class="mono"></div></div>
+          <div class="dayrow"><span class="gr">⣿</span><div class="fs"><input value="4" class="mono"><input value="Namche to Tengboche"><input value="3860" class="mono"></div></div>
+          <a href="#" class="btn gh sm" style="margin-top:6px">Add day</a>
+        </div></div>
+
+        <div class="card"><div class="ch"><h3>Gallery</h3></div><div class="cb">
+          <div class="upl">Drop images here, or <a href="#" style="color:var(--crimson)">browse</a><div style="font-size:11.5px;margin-top:5px;color:var(--slate-2)">JPG, PNG, WEBP or AVIF · max 5 MB each</div></div>
+          <div class="thumbs">
+            <div class="th"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div>
+            <div class="th"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div>
+            <div class="th no"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeC"/></svg><b>Alt text needed</b></div>
+            <div class="th"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeB"/></svg></div>
+            <div class="th"><svg class="ridge" viewBox="0 0 800 300" preserveAspectRatio="none"><use href="#ridgeA"/></svg></div>
+          </div>
+        </div></div>
+
+        <div class="card"><div class="ch"><h3>Search appearance</h3></div><div class="cb">
+          <div class="f2">
+            <div>
+              <div class="fld"><label>SEO title</label><input value="Everest Base Camp Trek — 14 Days from $1,395"><div class="hint">52 of 60 characters</div></div>
+              <div class="fld"><label>Meta description</label><textarea style="min-height:66px">14-day Everest Base Camp trek with two acclimatisation days, Lukla flights and all permits included. Licensed Nepali guides, groups capped at 12.</textarea><div class="hint">147 of 160 characters</div></div>
+              <div class="fld"><label>Structured data type</label><select><option>TouristTrip</option><option>Product</option></select></div>
+            </div>
+            <div>
+              <div class="fld"><label>Preview</label>
+                <div class="serp">
+                  <div class="u">treknclimb.com › nepal › trekking › everest-base-camp</div>
+                  <div class="t">Everest Base Camp Trek — 14 Days from $1,395</div>
+                  <div class="d">14-day Everest Base Camp trek with two acclimatisation days, Lukla flights and all permits included. Licensed Nepali guides, groups capped at 12.</div>
+                </div>
+              </div>
+              <div class="fld"><label>Indexing</label><select><option>Index and follow</option><option>No index</option></select></div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ADMIN BOOKINGS ================= -->
+<section class="screen" id="s-abook">
+  <div class="adm">
+    <nav class="aside">
+      <div class="lg">TREK &amp; CLIMB</div>
+      <div class="gp">OVERVIEW</div><a href="#">Dashboard</a><a href="#" class="on">Booking inquiries <span class="bg">7</span></a>
+      <div class="gp">CONTENT</div><a href="#">Trips</a><a href="#">Activities</a><a href="#">Destinations</a><a href="#">Blog posts</a><a href="#">Categories</a><a href="#">Testimonials</a><a href="#">FAQs</a>
+      <div class="gp">SITE</div><a href="#">Media</a><a href="#">Exchange rates</a><a href="#">Redirects</a><a href="#">Settings</a>
+    </nav>
+    <div>
+      <div class="atop"><h2>Booking inquiries</h2><div class="rt"><a href="#" class="btn gh sm">Export CSV</a><span class="who">BG</span></div></div>
+      <div class="abody">
+        <div class="g2" style="grid-template-columns:1fr 380px;align-items:start">
+          <div class="card">
+            <div class="ch" style="gap:8px;flex-wrap:wrap">
+              <select style="border:1px solid var(--stone-2);border-radius:3px;padding:6px 9px;font:inherit;font-size:12.5px"><option>All statuses</option><option>New</option><option>Contacted</option></select>
+              <select style="border:1px solid var(--stone-2);border-radius:3px;padding:6px 9px;font:inherit;font-size:12.5px"><option>Last 30 days</option></select>
+              <span style="margin-left:auto;font-size:12px;color:var(--slate)" class="mono">18 inquiries</span>
+            </div>
+            <div class="cb flush"><table class="dt">
+              <thead><tr><th>Reference</th><th>Name</th><th>Trip</th><th>Date</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr style="background:var(--glacier-lo)"><td class="mono">TNC-2026-0417</td><td>Hannah Meyer</td><td>Everest Base Camp</td><td>6 Sep</td><td><span class="pill new">New</span></td></tr>
+                <tr><td class="mono">TNC-2026-0416</td><td>David Rowe</td><td>Annapurna Circuit</td><td>6 Sep</td><td><span class="pill new">New</span></td></tr>
+                <tr><td class="mono">TNC-2026-0415</td><td>Sofia Klein</td><td style="color:var(--slate-2)">General inquiry</td><td>5 Sep</td><td><span class="pill con">Contacted</span></td></tr>
+                <tr><td class="mono">TNC-2026-0414</td><td>James Whitfield</td><td>Island Peak</td><td>5 Sep</td><td><span class="pill con">Contacted</span></td></tr>
+                <tr><td class="mono">TNC-2026-0413</td><td>Marta Rossi</td><td>Manaslu Circuit</td><td>4 Sep</td><td><span class="pill new">New</span></td></tr>
+                <tr><td class="mono">TNC-2026-0412</td><td>Tom Bergeron</td><td>Langtang Valley</td><td>3 Sep</td><td><span class="pill con">Contacted</span></td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="card">
+            <div class="ch"><h3>TNC-2026-0417</h3><span class="pill new" style="margin-left:auto">New</span></div>
+            <div class="cb">
+              <table class="dt" style="margin:-15px -15px 14px;width:calc(100% + 30px)">
+                <tbody>
+                  <tr><td style="color:var(--slate);width:38%">Name</td><td>Hannah Meyer</td></tr>
+                  <tr><td style="color:var(--slate)">Email</td><td>h.meyer@example.de</td></tr>
+                  <tr><td style="color:var(--slate)">Phone</td><td class="mono">+49 170 000000</td></tr>
+                  <tr><td style="color:var(--slate)">Trip</td><td>Everest Base Camp</td></tr>
+                  <tr><td style="color:var(--slate)">Preferred date</td><td>14 Oct 2026</td></tr>
+                  <tr><td style="color:var(--slate)">Travellers</td><td class="mono">2</td></tr>
+                  <tr><td style="color:var(--slate)">Reply via</td><td>Email</td></tr>
+                  <tr><td style="color:var(--slate)">From page</td><td style="font-size:11.5px">/nepal/trekking/everest-base-camp</td></tr>
+                  <tr><td style="color:var(--slate)">Received</td><td>6 Sep, 09:14 NPT</td></tr>
+                </tbody>
+              </table>
+              <div style="font-size:12px;color:var(--slate);margin-bottom:5px">Message</div>
+              <div style="background:var(--paper);border:1px solid var(--stone);border-radius:3px;padding:11px;font-size:13px;line-height:1.7;margin-bottom:14px">We are two friends in our thirties, both regular hikers but neither of us has been above 3,000 m. Is mid-October still a good window, and do you think the 14-day itinerary is enough for first-timers at altitude?</div>
+              <div style="display:flex;gap:7px;margin-bottom:14px"><a href="#" class="btn pri sm" style="flex:1">Reply by email</a><a href="#" class="btn wa sm" style="flex:1">WhatsApp</a></div>
+              <div class="fld"><label>Status</label><select><option>New</option><option>Contacted</option><option>Confirmed</option><option>Closed</option></select></div>
+              <div class="fld" style="margin:0"><label>Internal notes</label><textarea style="min-height:60px" placeholder="Visible to staff only"></textarea></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ADMIN SETTINGS ================= -->
+<section class="screen" id="s-aset">
+  <div class="adm">
+    <nav class="aside">
+      <div class="lg">TREK &amp; CLIMB</div>
+      <div class="gp">OVERVIEW</div><a href="#">Dashboard</a><a href="#">Booking inquiries <span class="bg">7</span></a>
+      <div class="gp">CONTENT</div><a href="#">Trips</a><a href="#">Activities</a><a href="#">Destinations</a><a href="#">Blog posts</a><a href="#">Categories</a><a href="#">Testimonials</a><a href="#">FAQs</a>
+      <div class="gp">SITE</div><a href="#">Media</a><a href="#">Exchange rates</a><a href="#">Redirects</a><a href="#" class="on">Settings</a>
+    </nav>
+    <div>
+      <div class="atop"><h2>Settings</h2><div class="rt"><span class="who">BG</span></div></div>
+      <div class="abody">
+        <div class="atabs"><button class="on">Exchange rates</button><button>Affiliations</button><button>Redirects</button><button>Company details</button></div>
+
+        <div class="warnrow"><b>Rates last refreshed 28 August.</b> Anything older than 7 days shows this warning to you but not to visitors. <a href="#" style="color:#7A5A12;margin-left:auto">Refresh from API</a></div>
+
+        <div class="card">
+          <div class="ch"><h3>Display currencies</h3><span style="margin-left:auto;font-size:11.5px;color:var(--slate)">Base currency is USD and cannot be changed</span></div>
+          <div class="cb flush"><table class="dt">
+            <thead><tr><th>Currency</th><th>Rate to 1 USD</th><th>Source</th><th>Updated</th><th>Rounding</th><th>Live</th></tr></thead>
+            <tbody>
+              <tr><td>EUR — Euro</td><td class="mono">0.9180</td><td>API</td><td>28 Aug</td><td class="mono">nearest 5</td><td><span class="pill pub">On</span></td></tr>
+              <tr><td>GBP — Pound sterling</td><td class="mono">0.7845</td><td>API</td><td>28 Aug</td><td class="mono">nearest 5</td><td><span class="pill pub">On</span></td></tr>
+              <tr><td>AUD — Australian dollar</td><td class="mono">1.5120</td><td>API</td><td>28 Aug</td><td class="mono">nearest 10</td><td><span class="pill pub">On</span></td></tr>
+              <tr><td>NPR — Nepalese rupee</td><td class="mono">138.4200</td><td>Manual</td><td>01 Sep</td><td class="mono">nearest 100</td><td><span class="pill pub">On</span></td></tr>
+              <tr><td>INR — Indian rupee</td><td class="mono">86.9100</td><td>API</td><td>28 Aug</td><td class="mono">nearest 100</td><td><span class="pill dr">Off</span></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <div class="card">
+          <div class="ch"><h3>Legacy URL redirects</h3><a href="#" class="btn gh sm" style="margin-left:auto">Add redirect</a></div>
+          <div class="cb flush"><table class="dt">
+            <thead><tr><th>Old URL, WordPress</th><th>Redirects to</th><th>Type</th><th>Hits, 30 days</th></tr></thead>
+            <tbody>
+              <tr><td style="font-size:12px">/everest-base-camp-trek-14-days/</td><td style="font-size:12px">/nepal/trekking/everest-base-camp</td><td class="mono">301</td><td class="mono">142</td></tr>
+              <tr><td style="font-size:12px">/package/annapurna-circuit/</td><td style="font-size:12px">/nepal/trekking/annapurna-circuit</td><td class="mono">301</td><td class="mono">86</td></tr>
+              <tr><td style="font-size:12px">/?p=418</td><td style="font-size:12px">/blog/altitude-sickness-guides</td><td class="mono">301</td><td class="mono">31</td></tr>
+              <tr style="background:#FBF4E4"><td style="font-size:12px">/tours/langtang-valley-9-days/</td><td style="color:var(--crimson);font-size:12px">Not mapped — returning 404</td><td class="mono">—</td><td class="mono">17</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+  </div>
+  </div>
+</div>
+</div>
+
+<script>
+const names={home:'Homepage',destinations:'Destinations overview',nepal:'Destination — Nepal',india:'Destination — India',activity:'Activity — Trekking in Nepal',trip:'Trip detail — Everest Base Camp',trips:'All trips with filters',blog:'Blog index',post:'Blog post',contact:'Contact',faq:'FAQ',about:'About',privacy:'Privacy policy',e404:'404 not found',e500:'500 server error',emptyf:'No filter results',alogin:'Admin — login',adash:'Admin — dashboard',atrips:'Admin — trips list',aedit:'Admin — trip editor',abook:'Admin — booking inquiries',aset:'Admin — settings'};
+document.querySelectorAll('.pnav a').forEach(a=>{
+  a.addEventListener('click',e=>{
+    e.preventDefault();
+    const s=a.dataset.s;
+    document.querySelectorAll('.pnav a').forEach(x=>x.classList.remove('on'));
+    a.classList.add('on');
+    document.querySelectorAll('.screen').forEach(x=>x.classList.remove('on'));
+    document.getElementById('s-'+s).classList.add('on');
+    document.getElementById('crumbnm').textContent=names[s]||s;
+    window.scrollTo(0,0);
+  });
+});
+document.querySelectorAll('.pbar .sz button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.pbar .sz button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById('frame').classList.toggle('mob',b.dataset.w==='m');
+  });
+});
+document.querySelectorAll('.faq .q, .day .hdr').forEach(q=>{
+  q.addEventListener('click',()=>{
+    const mk=q.querySelector('.mk');
+    if(mk) mk.textContent = mk.textContent.trim()==='+' ? '−' : '+';
+  });
+});
+document.querySelectorAll('.tabs button, .atabs button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    b.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+  });
+});
+document.querySelectorAll('.radio-row label').forEach(l=>{
+  l.addEventListener('click',()=>{
+    l.parentElement.querySelectorAll('label').forEach(x=>x.classList.remove('sel'));
+    l.classList.add('sel');
+  });
+});
+</script>
+</body>
+</html>
