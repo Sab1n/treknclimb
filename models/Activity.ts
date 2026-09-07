@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
+import { IDestination } from './Destination';
+import { ISeoFields, seoFields } from './shared/seo';
 
 /**
  * An Activity sits between a Destination and a Trip:
@@ -8,23 +10,38 @@ import mongoose, { Schema, Model, Types } from 'mongoose';
  * destination reference is generic; `Destination.hasActivities` is the single
  * flag that decides whether a destination uses activities at all.
  */
-export interface IActivity {
+export interface IActivity extends ISeoFields {
   _id: Types.ObjectId;
   name: string;
   slug: string;
+  /** Every slug this activity has ever had, for the 301 catch-all. */
+  slugHistory: string[];
   description: string;
   coverImage: string;
   coverImageAlt: string;
   destination: Types.ObjectId;
   displayOrder: number;
-  metaTitle?: string;
-  metaDescription?: string;
+
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/**
+ * The same activity after `.populate('destination')`.
+ *
+ * Activity pages need `activity.destination.slug` to build `/nepal/trekking`
+ * and its breadcrumb, so this shape is needed one level above Trip for exactly
+ * the same reason.
+ */
+export interface IActivityPopulated extends Omit<IActivity, 'destination'> {
+  destination: IDestination;
 }
 
 const ActivitySchema = new Schema<IActivity>(
   {
     name: { type: String, required: true, trim: true },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    slugHistory: { type: [String], default: [] },
     description: { type: String, required: true },
     coverImage: { type: String, required: true },
     coverImageAlt: { type: String, required: true },
@@ -35,11 +52,13 @@ const ActivitySchema = new Schema<IActivity>(
       index: true,
     },
     displayOrder: { type: Number, default: 0 },
-    metaTitle: { type: String },
-    metaDescription: { type: String },
+    ...seoFields,
   },
   { timestamps: true }
 );
+
+// The 301 catch-all looks up retired slugs.
+ActivitySchema.index({ slugHistory: 1 });
 
 const Activity: Model<IActivity> =
   mongoose.models.Activity ||
