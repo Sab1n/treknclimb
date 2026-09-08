@@ -1,5 +1,6 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
 import { ISeoFields, seoFields } from './shared/seo';
+import { reservedSlugValidator } from './shared/reservedSlugs';
 
 /**
  * A small curated taxonomy — destination guides, travel tips, trekking guides,
@@ -21,7 +22,15 @@ export interface IBlogCategory extends ISeoFields {
 const BlogCategorySchema = new Schema<IBlogCategory>(
   {
     name: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      // /blog/category/[slug].
+      validate: reservedSlugValidator,
+    },
     slugHistory: { type: [String], default: [] },
     description: { type: String },
     displayOrder: { type: Number, default: 0 },

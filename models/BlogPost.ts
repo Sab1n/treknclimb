@@ -1,5 +1,6 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
 import { ISeoFields, seoFields } from './shared/seo';
+import { reservedSlugValidator } from './shared/reservedSlugs';
 import { IBlogCategory } from './BlogCategory';
 import { PublishStatus, PUBLISH_STATUSES } from './shared/status';
 
@@ -38,7 +39,15 @@ export interface IBlogPostPopulated extends Omit<IBlogPost, 'category'> {
 const BlogPostSchema = new Schema<IBlogPost>(
   {
     title: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      // /blog/[slug] shares its segment with /blog/category.
+      validate: reservedSlugValidator,
+    },
     slugHistory: { type: [String], default: [] },
     excerpt: { type: String, required: true },
     body: { type: String, required: true },

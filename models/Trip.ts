@@ -2,6 +2,7 @@ import mongoose, { Schema, Model, Types, UpdateQuery } from 'mongoose';
 import Destination, { IDestination } from './Destination';
 import { IActivity } from './Activity';
 import { ISeoFields, seoFields } from './shared/seo';
+import { reservedSlugValidator } from './shared/reservedSlugs';
 import { PublishStatus, PUBLISH_STATUSES } from './shared/status';
 
 /* ------------------------------------------------------------------ *
@@ -69,8 +70,12 @@ export interface IItineraryDay {
   title: string;
   description: string;
   location?: string;
-  /** Required: the elevation profile on the trip page is drawn from these. */
-  maxAltitudeM: number;
+  /**
+   * Optional in the type, conditionally required at save time: mandatory when
+   * the parent trip has `hasElevationProfile`, ignorable otherwise. A city tour
+   * has no meaningful per-day altitude and must still be savable.
+   */
+  maxAltitudeM?: number;
   distanceKm?: number;
   durationHours?: number;
   accommodation?: string;
@@ -128,7 +133,22 @@ export interface ITrip extends ISeoFields {
 
   // --- trip facts ---
   durationDays: number;
-  difficulty: TripDifficulty;
+  /**
+   * Optional: "Moderate" is meaningless for a city tour or a jungle safari.
+   * Cards and filters must handle its absence.
+   */
+  difficulty?: TripDifficulty;
+  /**
+   * Whether this trip has a meaningful altitude profile. Treks, hikes and peak
+   * climbs do; city tours and safaris do not.
+   *
+   * Controls two things and nothing else: whether `itinerary[].maxAltitudeM` is
+   * required on save, and whether the elevation graph renders. Turning it off
+   * never deletes stored altitudes — unticking a box is usually a mistake, and
+   * silently destroying data on the strength of one is unforgivable. The values
+   * stay put and reappear if it is ticked again.
+   */
+  hasElevationProfile: boolean;
   /** Optional editorial grade, distinct from the difficulty enum. */
   tripGrade?: string;
   maxAltitudeM?: number;
@@ -211,7 +231,27 @@ const ItineraryDaySchema = new Schema<IItineraryDay>({
   title: { type: String, required: true, trim: true },
   description: { type: String, required: true },
   location: { type: String, trim: true },
-  maxAltitudeM: { type: Number, required: true, min: 0 },
+  /**
+   * Conditionally required, and the condition lives on the *parent* document.
+   *
+   * Inside a subdocument validator `this` is the subdocument, not the Trip — so
+   * `this.hasElevationProfile` would always be undefined. Mongoose gives every
+   * subdocument a `.parent()` (the document it is embedded in) and an
+   * `.ownerDocument()` (the top-level document). `itinerary` hangs directly off
+   * Trip, so both return the same thing here; `parent()` is the narrower claim.
+   *
+   * The `typeof` guard matters: this same function runs against plain objects
+   * during some code paths, and those have no `.parent` method at all.
+   */
+  maxAltitudeM: {
+    type: Number,
+    min: 0,
+    required: function (this: IItineraryDay & { parent?: () => ITrip }) {
+      const trip = typeof this.parent === 'function' ? this.parent() : undefined;
+
+      return trip?.hasElevationProfile === true;
+    },
+  },
   distanceKm: { type: Number, min: 0 },
   durationHours: { type: Number, min: 0 },
   accommodation: { type: String, trim: true },
@@ -246,7 +286,16 @@ const TripFaqSchema = new Schema<ITripFaq>({
 const TripSchema = new Schema<ITrip>(
   {
     title: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      // A trip slug is the last URL segment, directly under a destination for
+      // non-Nepal trips (/india/markha-valley).
+      validate: reservedSlugValidator,
+    },
     slugHistory: { type: [String], default: [] },
     // Sparse, so any number of drafts can exist without one, but any code that
     // is set has to be unique.
@@ -273,11 +322,9 @@ const TripSchema = new Schema<ITrip>(
     gallery: { type: [GalleryImageSchema], default: [] },
 
     durationDays: { type: Number, required: true, min: 1 },
-    difficulty: {
-      type: String,
-      required: true,
-      enum: [...TRIP_DIFFICULTIES],
-    },
+    // Optional — see the interface. A city tour has no difficulty grade.
+    difficulty: { type: String, enum: [...TRIP_DIFFICULTIES] },
+    hasElevationProfile: { type: Boolean, default: false },
     tripGrade: { type: String, trim: true },
     maxAltitudeM: { type: Number, min: 0 },
     region: { type: String, trim: true },

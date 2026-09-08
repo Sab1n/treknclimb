@@ -1,6 +1,7 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
 import { IDestination } from './Destination';
 import { ISeoFields, seoFields } from './shared/seo';
+import { reservedSlugValidator } from './shared/reservedSlugs';
 
 /**
  * An Activity sits between a Destination and a Trip:
@@ -17,6 +18,14 @@ export interface IActivity extends ISeoFields {
   /** Every slug this activity has ever had, for the 301 catch-all. */
   slugHistory: string[];
   description: string;
+  /**
+   * Authored prose answering "who is this for". Distinct from `description`,
+   * which says what the activity *is* — a different question, and one the
+   * generic difficulty table cannot answer for a specific activity.
+   *
+   * Optional: a new activity is savable before this is written.
+   */
+  suitability?: string;
   coverImage: string;
   coverImageAlt: string;
   destination: Types.ObjectId;
@@ -40,9 +49,18 @@ export interface IActivityPopulated extends Omit<IActivity, 'destination'> {
 const ActivitySchema = new Schema<IActivity>(
   {
     name: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      // An activity slug becomes the second URL segment (/nepal/trekking).
+      validate: reservedSlugValidator,
+    },
     slugHistory: { type: [String], default: [] },
     description: { type: String, required: true },
+    suitability: { type: String, trim: true },
     coverImage: { type: String, required: true },
     coverImageAlt: { type: String, required: true },
     destination: {

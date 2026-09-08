@@ -41,6 +41,10 @@ const destinations: Seed<IDestination>[] = [
   {
     name: 'Nepal',
     slug: 'nepal',
+    typicalLengthLabel: '9–18 days',
+    maxAltitudeLabel: '4,000–6,500 m',
+    bestMonthsLabel: 'Mar–May, Sep–Nov',
+    permitComplexity: 'Low',
     description:
       'Home of eight of the world’s fourteen 8,000-metre peaks. Trekking, peak climbing and short hikes across the Everest, Annapurna, Manaslu and Langtang regions.',
     coverImage: 'treknclimb/destinations/nepal',
@@ -54,6 +58,10 @@ const destinations: Seed<IDestination>[] = [
   {
     name: 'India',
     slug: 'india',
+    typicalLengthLabel: '10–16 days',
+    maxAltitudeLabel: '4,500–5,600 m',
+    bestMonthsLabel: 'Jun–Sep',
+    permitComplexity: 'Medium',
     description:
       'Himalayan trekking in Ladakh, Sikkim and Himachal, alongside cultural journeys through northern India.',
     coverImage: 'treknclimb/destinations/india',
@@ -67,6 +75,10 @@ const destinations: Seed<IDestination>[] = [
   {
     name: 'Tibet',
     slug: 'tibet',
+    typicalLengthLabel: '8–15 days',
+    maxAltitudeLabel: '4,600–5,600 m',
+    bestMonthsLabel: 'May–Sep',
+    permitComplexity: 'High',
     description:
       'The Tibetan plateau, Lhasa, Everest north base camp and the Kailash kora. Permit-led travel with long lead times.',
     coverImage: 'treknclimb/destinations/tibet',
@@ -80,6 +92,10 @@ const destinations: Seed<IDestination>[] = [
   {
     name: 'Bhutan',
     slug: 'bhutan',
+    typicalLengthLabel: '6–14 days',
+    maxAltitudeLabel: '3,000–4,900 m',
+    bestMonthsLabel: 'Mar–May, Sep–Nov',
+    permitComplexity: 'Medium',
     description:
       'Dzongs, festivals and the Snowman trek, in a country that limits visitor numbers by design.',
     coverImage: 'treknclimb/destinations/bhutan',
@@ -97,6 +113,8 @@ const nepalActivities: Omit<Seed<IActivity>, 'destination'>[] = [
   {
     name: 'Trekking',
     slug: 'trekking',
+    suitability:
+      'Suits anyone comfortable walking five to seven hours on consecutive days over uneven ground. No climbing skill, no ropes and no previous altitude experience are needed — our itineraries build in the acclimatisation days that make the difference.',
     description:
       'Multi-day walking routes through the Everest, Annapurna, Langtang and Manaslu regions. No technical climbing — teahouse and camping itineraries.',
     coverImage: 'treknclimb/activities/trekking',
@@ -109,6 +127,8 @@ const nepalActivities: Omit<Seed<IActivity>, 'destination'>[] = [
   {
     name: 'Peak Climbing',
     slug: 'peak-climbing',
+    suitability:
+      'Suits strong trekkers who want a summit rather than a viewpoint. You do not need previous climbing experience — training days on rope, crampon and fixed-line technique are built in — but you do need to be comfortable with long days at altitude first.',
     description:
       'Trekking peaks between roughly 5,500 m and 6,500 m. Rope, crampons and ice axe, with training days built into the itinerary.',
     coverImage: 'treknclimb/activities/peak-climbing',
@@ -121,6 +141,8 @@ const nepalActivities: Omit<Seed<IActivity>, 'destination'>[] = [
   {
     name: 'Hiking',
     slug: 'hiking',
+    suitability:
+      'Suits first-time visitors, families with teenagers, and anyone with a few days rather than a few weeks. Nothing here goes high enough for altitude to be a factor and every night is in a teahouse or lodge.',
     description:
       'Short day walks and two- to four-day routes around Pokhara and the Kathmandu valley. No altitude experience needed.',
     coverImage: 'treknclimb/activities/hiking',

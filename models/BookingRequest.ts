@@ -40,8 +40,8 @@ export interface IBookingRequest {
   reference: string;
 
   // --- customer ---
-  firstName: string;
-  lastName: string;
+  /** One field, per SRS §11. Splitting names on a space is wrong for most of the world. */
+  name: string;
   email: string;
   phone?: string;
 
@@ -85,8 +85,7 @@ const BookingRequestSchema = new Schema<IBookingRequest>(
       trim: true,
     },
 
-    firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true },
     // Indexed because the rate limiter and the admin search both key on it.
     email: {
       type: String,
