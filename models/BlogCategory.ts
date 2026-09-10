@@ -29,7 +29,7 @@ const BlogCategorySchema = new Schema<IBlogCategory>(
       lowercase: true,
       trim: true,
       // /blog/category/[slug].
-      validate: reservedSlugValidator,
+      validate: reservedSlugValidator('/blog/category'),
     },
     slugHistory: { type: [String], default: [] },
     description: { type: String },

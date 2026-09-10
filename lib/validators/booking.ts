@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { COUNTRIES, isCountry } from '../countries';
 
 /**
  * The booking inquiry schema, shared by the client form and the route handler.
@@ -9,10 +10,22 @@ import { z } from 'zod';
  * honest visitors and provides no guarantee at all, because anyone can POST
  * directly to the endpoint.
  *
- * Fields are exactly SRS §11 and nothing else.
+ * Fields are SRS §11 plus two documented additions: `nationality` (see
+ * `lib/countries.ts` and CLAUDE.md — permit fees and visa rules differ by
+ * nationality, so a quote cannot be accurate without it) and `consent`.
  */
 
 export const CONTACT_CHANNELS = ['email', 'whatsapp', 'either'] as const;
+
+/**
+ * `''` becomes `undefined`; anything else passes through untouched.
+ *
+ * This runs **before** `.optional()` on every optional field, and the order is
+ * the whole point — see the note on the schema below.
+ */
+function emptyToUndefined(value: string): string | undefined {
+  return value === '' ? undefined : value;
+}
 
 /** Rejects a date that has already passed, ignoring time of day. */
 function isNotInThePast(value: string): boolean {
@@ -28,9 +41,29 @@ function isNotInThePast(value: string): boolean {
 /**
  * The fields a visitor actually fills in.
  *
- * Empty optional inputs arrive as `''` from an HTML form, not `undefined`, so
- * each one is normalised to `undefined` before validation. Without that, an
- * untouched phone field would fail a `.min()` check.
+ * ## Empty optional inputs
+ *
+ * An untouched input arrives as `''`, never `undefined`. That is how HTML
+ * forms work, and React Hook Form's `defaultValues` are `''` for the same
+ * reason. So every optional field normalises `''` to `undefined` with
+ * `.transform()` **before** `.optional()`, and any `.refine()` then runs on the
+ * normalised value.
+ *
+ * The order matters, and the obvious-looking alternative is silently wrong:
+ *
+ *     z.string().trim().optional().or(z.literal('').transform(() => undefined))
+ *
+ * `.or()` builds a union that tries the left side first, and
+ * `z.string().optional()` accepts `''` happily — so the right-hand branch never
+ * runs and the value stays `''`. On `preferredDate` that reached the refine as
+ * an empty string, `new Date('')` is `Invalid Date`, and **every inquiry that
+ * left the date blank was rejected with "Please choose a date in the future"**.
+ *
+ * It survived the original endpoint tests because those payloads omitted the
+ * optional keys entirely, which is the one thing a real browser never does.
+ * `lib/validators/booking.test.ts` now submits the exact browser shape — every
+ * key present, blanks as empty strings — so the distinction is covered rather
+ * than assumed.
  */
 export const bookingFormSchema = z.object({
   name: z
@@ -45,22 +78,37 @@ export const bookingFormSchema = z.object({
     .string()
     .trim()
     .max(40)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
+    .transform(emptyToUndefined)
+    .optional(),
+
+  /**
+   * Required. Nepal's trekking permit fees and visa rules differ by
+   * nationality, so the quote depends on it.
+   *
+   * Validated against the closed list rather than accepted as free text: the
+   * value is stored and has to stay filterable. The select in the browser
+   * already constrains it, but the endpoint is reachable directly, so this is
+   * the check that actually holds.
+   */
+  nationality: z
+    .string()
+    .trim()
+    .min(1, 'Please choose your nationality')
+    .refine(isCountry, 'Please choose a country from the list'),
 
   /** Trip slug, auto-filled from the trip page. Empty means a general inquiry. */
   tripSlug: z
     .string()
     .trim()
     .max(200)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
+    .transform(emptyToUndefined)
+    .optional(),
 
   preferredDate: z
     .string()
     .trim()
+    .transform(emptyToUndefined)
     .optional()
-    .or(z.literal('').transform(() => undefined))
     .refine(
       (value) => value === undefined || isNotInThePast(value),
       'Please choose a date in the future'
@@ -76,14 +124,34 @@ export const bookingFormSchema = z.object({
     .string()
     .trim()
     .max(4000, 'Please keep this under 4000 characters')
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
+    .transform(emptyToUndefined)
+    .optional(),
 
   preferredChannel: z.enum(CONTACT_CHANNELS),
+
+  /**
+   * Consent to be contacted about this inquiry. Unticked by default and
+   * required to submit.
+   *
+   * `z.boolean().refine(v => v === true)` rather than `z.literal(true)` so that
+   * `false` — what an unticked box actually sends — produces a field error on
+   * `consent` with our wording, instead of a type mismatch. Checked on the
+   * server as well as in the browser: consent that only the client enforces is
+   * not consent, it is a UI convention.
+   */
+  consent: z
+    .boolean()
+    .refine(
+      (value) => value === true,
+      'Please tick this so we can reply to your inquiry'
+    ),
 });
 
 export type BookingFormValues = z.input<typeof bookingFormSchema>;
 export type BookingFormParsed = z.output<typeof bookingFormSchema>;
+
+/** Re-exported so the form does not need a second import for the select. */
+export { COUNTRIES };
 
 /**
  * What the endpoint actually receives: the form fields plus three anti-spam

@@ -171,3 +171,24 @@ export async function getAllPublishedTrips(): Promise<ITripPopulated[]> {
     .lean<ITripPopulated[]>()
     .exec();
 }
+
+/**
+ * The trips flagged `featured`, for the homepage.
+ *
+ * Editorially chosen, not derived — `featured` is a boolean the admin sets, so
+ * the client decides what leads the homepage rather than a popularity
+ * heuristic inventing an answer. Returns `[]` when nothing is flagged, and the
+ * homepage falls back to the top of the ordinary listing order rather than
+ * dropping the section.
+ */
+export async function getFeaturedTrips(limit = 3): Promise<ITripPopulated[]> {
+  await connectDB();
+
+  return Trip.find({ status: 'published', featured: true })
+    .sort({ displayOrder: 1, title: 1 })
+    .limit(limit)
+    .populate('destination')
+    .populate('activity')
+    .lean<ITripPopulated[]>()
+    .exec();
+}

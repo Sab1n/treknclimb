@@ -45,6 +45,17 @@ export interface IBookingRequest {
   email: string;
   phone?: string;
 
+  /**
+   * Country name, required. A deliberate amendment to SRS §11 — see CLAUDE.md.
+   *
+   * Nepal's trekking permit fees and visa rules differ by nationality, so a
+   * quote cannot be accurate without it. Stored as the name rather than an ISO
+   * code so it reads correctly in the admin list, the notification email and
+   * any export, and constrained to `lib/countries.ts` by the validator so it
+   * stays filterable.
+   */
+  nationality: string;
+
   // --- request ---
   /**
    * Nullable, not optional: a general inquiry that names no trip is a real and
@@ -55,6 +66,19 @@ export interface IBookingRequest {
   travellers: number;
   message?: string;
   preferredChannel: ContactChannel;
+
+  /**
+   * When the visitor ticked the consent box, set by the route handler at
+   * submission.
+   *
+   * Required, and stored explicitly rather than left implied by the record
+   * existing at all. A year later, "they must have consented, the row is here"
+   * is an inference; a timestamp is evidence. It also pins *which* wording was
+   * agreed to — `lib/consent.ts` carries the statement and the date it took
+   * effect, so a `consentedAt` maps to a version rather than to whatever the
+   * form happens to say today.
+   */
+  consentedAt: Date;
 
   // --- admin ---
   status: BookingStatus;
@@ -95,6 +119,10 @@ const BookingRequestSchema = new Schema<IBookingRequest>(
       index: true,
     },
     phone: { type: String, trim: true },
+    // Indexed: "which markets are inquiring" is a question the admin list will
+    // be asked, and it is the reason this is a closed list rather than free
+    // text.
+    nationality: { type: String, required: true, trim: true, index: true },
 
     trip: { type: Schema.Types.ObjectId, ref: 'Trip', default: null, index: true },
     preferredDate: { type: Date },
@@ -106,6 +134,8 @@ const BookingRequestSchema = new Schema<IBookingRequest>(
       enum: [...CONTACT_CHANNELS],
       default: 'email',
     },
+    // No default: consent has to be an act, not something the schema fills in.
+    consentedAt: { type: Date, required: true },
 
     status: {
       type: String,

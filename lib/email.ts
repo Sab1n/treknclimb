@@ -68,6 +68,9 @@ export async function sendBookingEmails(
     ['Name', booking.name],
     ['Email', booking.email],
     ['Phone', booking.phone || 'Not given'],
+    // Near the top on purpose: the permit fee and the visa answer both depend
+    // on it, so whoever prices this needs it before anything else.
+    ['Nationality', booking.nationality],
     ['Trip', tripTitle ?? 'Not specified — general inquiry'],
     ['Preferred date', formatDate(booking.preferredDate)],
     ['Travellers', String(booking.travellers)],

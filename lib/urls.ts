@@ -1,6 +1,8 @@
 import { ITripPopulated } from '../models/Trip';
 import { IActivity } from '../models/Activity';
 import { IDestination } from '../models/Destination';
+import { IBlogPost } from '../models/BlogPost';
+import { IBlogCategory } from '../models/BlogCategory';
 
 /**
  * URL construction, in one place.
@@ -36,4 +38,23 @@ export function tripPath(trip: ITripPopulated): string {
   segments.push(trip.slug);
 
   return `/${segments.join('/')}`;
+}
+
+/**
+ * Blog URLs.
+ *
+ * `/blog/category/[slug]` and `/blog/[slug]` share a segment: `category` is a
+ * static folder sitting beside the dynamic one, and Next resolves static
+ * first. That works — unlike two *dynamic* siblings, which fail the build —
+ * but it means a post slugged `category` would be permanently unreachable,
+ * which is why `category` is on the reserved list.
+ */
+export function blogPostPath(post: Pick<IBlogPost, 'slug'>): string {
+  return `/blog/${post.slug}`;
+}
+
+export function blogCategoryPath(
+  category: Pick<IBlogCategory, 'slug'>
+): string {
+  return `/blog/category/${category.slug}`;
 }

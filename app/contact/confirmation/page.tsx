@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import Header from '../../../components/layout/Header';
 import Footer from '../../../components/layout/Footer';
 import TripCard from '../../../components/content/TripCard';
+import NewsletterSignup from '../../../components/forms/NewsletterSignup';
 import { getAllPublishedTrips } from '../../../lib/queries/trips';
 
 /**
@@ -120,6 +121,23 @@ export default async function ConfirmationPage({
                 </p>
               )}
             </div>
+          </div>
+        </section>
+
+        {/*
+          The only place the newsletter appears as a checkbox, and it is
+          unticked. This is after the inquiry is already sent, so it competes
+          with nothing — which is exactly why it belongs here rather than on
+          the form itself.
+        */}
+        <section className="border-b border-hairline">
+          <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+            <NewsletterSignup
+              requireCheckbox
+              turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+              heading="While you wait for our reply"
+              blurb="We send field notes a few times a year — permit changes, route conditions and season advice. Separate from your inquiry, and you can say no."
+            />
           </div>
         </section>
 

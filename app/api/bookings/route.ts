@@ -11,6 +11,7 @@ import { checkBookingRateLimit, clientIp } from '../../../lib/rateLimit';
 import { verifyTurnstile } from '../../../lib/turnstile';
 import { allocateReference } from '../../../lib/reference';
 import { sendBookingEmails } from '../../../lib/email';
+import { logRejection } from '../../../lib/rejections';
 
 /**
  * POST /api/bookings — the site's only conversion event.
@@ -43,6 +44,15 @@ import { sendBookingEmails } from '../../../lib/email';
  * Step 7 comes last on purpose. **A failed email must never lose an inquiry**,
  * so the record is durable before any mail is attempted, and mail failures are
  * logged rather than returned as errors.
+ *
+ * ## Rejections are recorded
+ *
+ * Every path that discards a submission writes a `RejectedSubmission` first —
+ * reason, timestamp, IP and the full payload, self-purging after 30 days. The
+ * responses stay opaque to the sender, but a discarded inquiry is never
+ * untraceable on our side: "I submitted and heard nothing" has to be a query,
+ * not a guess. Schema-validation failures are the exception — those go straight
+ * back to the visitor to correct, so nothing is lost.
  */
 export async function POST(request: Request) {
   const ip = clientIp(request);
@@ -86,6 +96,15 @@ export async function POST(request: Request) {
   // see this path anyway.
   if (data.company && data.company.trim() !== '') {
     console.warn(`[bookings] Honeypot filled from ${ip} — discarded.`);
+
+    await logRejection({
+      reason: 'honeypot',
+      detail: `company="${data.company.trim().slice(0, 80)}"`,
+      request,
+      ip,
+      payload: data,
+    });
+
     return NextResponse.json({ ok: true, reference: null }, { status: 200 });
   }
 
@@ -93,6 +112,15 @@ export async function POST(request: Request) {
 
   if (elapsed < MIN_COMPLETION_MS) {
     console.warn(`[bookings] Submitted in ${elapsed}ms from ${ip} — discarded.`);
+
+    await logRejection({
+      reason: 'time-trap',
+      detail: `completed in ${elapsed}ms, threshold ${MIN_COMPLETION_MS}ms`,
+      request,
+      ip,
+      payload: data,
+    });
+
     return NextResponse.json({ ok: true, reference: null }, { status: 200 });
   }
 
@@ -101,6 +129,14 @@ export async function POST(request: Request) {
   const turnstile = await verifyTurnstile(data.turnstileToken, ip);
 
   if (!turnstile.ok) {
+    await logRejection({
+      reason: 'turnstile',
+      detail: turnstile.errorCodes?.join(', ') ?? 'verification failed',
+      request,
+      ip,
+      payload: data,
+    });
+
     return NextResponse.json(
       {
         error:
@@ -115,6 +151,14 @@ export async function POST(request: Request) {
   const rateLimit = await checkBookingRateLimit(ip, data.email);
 
   if (!rateLimit.allowed) {
+    await logRejection({
+      reason: 'rate-limit',
+      detail: rateLimit.limit,
+      request,
+      ip,
+      payload: data,
+    });
+
     return NextResponse.json(
       {
         error:
@@ -162,11 +206,20 @@ export async function POST(request: Request) {
       name: data.name,
       email: data.email,
       phone: data.phone,
+      nationality: data.nationality,
       trip: tripId,
       preferredDate: data.preferredDate ? new Date(data.preferredDate) : undefined,
       travellers: data.travellers,
       message: data.message,
       preferredChannel: data.preferredChannel,
+      /*
+       * Server time, not a value from the payload. The client could send
+       * anything, and the point of this field is to be evidence — evidence the
+       * subject of it can edit is not evidence. `data.consent` has already been
+       * checked as `true` by the schema above, so reaching this line is what
+       * the timestamp records.
+       */
+      consentedAt: new Date(),
       status: 'Pending',
       sourcePage: request.headers.get('referer') ?? undefined,
     });

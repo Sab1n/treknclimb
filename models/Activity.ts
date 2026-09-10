@@ -56,7 +56,7 @@ const ActivitySchema = new Schema<IActivity>(
       lowercase: true,
       trim: true,
       // An activity slug becomes the second URL segment (/nepal/trekking).
-      validate: reservedSlugValidator,
+      validate: reservedSlugValidator('/<destination>'),
     },
     slugHistory: { type: [String], default: [] },
     description: { type: String, required: true },

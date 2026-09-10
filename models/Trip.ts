@@ -294,7 +294,7 @@ const TripSchema = new Schema<ITrip>(
       trim: true,
       // A trip slug is the last URL segment, directly under a destination for
       // non-Nepal trips (/india/markha-valley).
-      validate: reservedSlugValidator,
+      validate: reservedSlugValidator('/<destination>'),
     },
     slugHistory: { type: [String], default: [] },
     // Sparse, so any number of drafts can exist without one, but any code that

@@ -22,6 +22,11 @@ export const RESERVED_SLUGS = [
   'activities',
   'trips',
   'blog',
+  // Same shape as 'activities': not a top-level route, but /blog/category is a
+  // static segment sitting beside /blog/[slug]. A post slugged 'category'
+  // would build a page at /blog/category that the archive route wins, and the
+  // post would silently never serve.
+  'category',
   'about',
   'contact',
   'faq',
@@ -46,15 +51,28 @@ export function isReservedSlug(value: string): boolean {
 }
 
 /**
- * Drop-in Mongoose validator for a slug path:
+ * Builds a Mongoose validator for a slug path:
  *
- *   slug: { type: String, required: true, validate: reservedSlugValidator }
+ *   slug: { ..., validate: reservedSlugValidator('/blog') }
  *
  * A path validator rather than a hook, so the error attaches to the `slug`
  * field and the admin editor can render it against the right input.
+ *
+ * **`routePrefix` is what the slug sits under, and it is why this is a factory
+ * rather than a constant.** The models using this live at four different
+ * depths, and a message that named `/category` when the collision is actually
+ * at `/blog/category` sends an admin looking for a root-level route that does
+ * not exist. Naming the real path is the entire value of the message — the
+ * failure it describes is invisible otherwise.
+ *
+ * Pass the literal prefix where it is static (`/blog`, `/blog/category`) and a
+ * placeholder where the parent segment is dynamic (`/<destination>`), so the
+ * message reads as a route shape rather than a specific URL.
  */
-export const reservedSlugValidator = {
-  validator: (value: string) => !isReservedSlug(value),
-  message: ({ value }: { value: string }) =>
-    `"${value}" is a reserved slug — it would shadow the static /${value} route and the page would never be reachable.`,
-};
+export function reservedSlugValidator(routePrefix = '') {
+  return {
+    validator: (value: string) => !isReservedSlug(value),
+    message: ({ value }: { value: string }) =>
+      `"${value}" is a reserved slug — it would shadow the static ${routePrefix}/${value} route and the page would never be reachable.`,
+  };
+}

@@ -65,7 +65,7 @@ const DestinationSchema = new Schema<IDestination>(
       trim: true,
       // A destination slug becomes a top-level URL, so it must not collide
       // with a static route.
-      validate: reservedSlugValidator,
+      validate: reservedSlugValidator(),
     },
     slugHistory: { type: [String], default: [] },
     description: { type: String, required: true },

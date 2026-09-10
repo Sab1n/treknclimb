@@ -111,3 +111,47 @@ export function clientIp(request: Request): string {
 
   return request.headers.get('x-real-ip')?.trim() || 'unknown';
 }
+
+/**
+ * Newsletter signups: 3 per IP per hour.
+ *
+ * Tighter than the booking limit, and for a different reason. A booking form
+ * is the conversion event and the cost of blocking a real one is a lost
+ * customer, so it is generous and fails open. A newsletter signup is worth far
+ * less, and the abuse it enables is worse: each submission sends a
+ * confirmation email to an address the sender chose, so an unbounded endpoint
+ * is a mail bomb aimed at a third party using our sending reputation.
+ *
+ * It still fails open on an Upstash outage. The honeypot, the time trap and
+ * Turnstile all remain in front of it, and the per-address resend cooldown in
+ * the route handler bounds the damage independently of Redis being reachable.
+ */
+const newsletterLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(3, '1 h'),
+      prefix: 'tnc:newsletter:ip:h',
+      analytics: false,
+    })
+  : null;
+
+export async function checkNewsletterRateLimit(
+  ip: string
+): Promise<RateLimitVerdict> {
+  if (!newsletterLimiter) return { allowed: true, degraded: true };
+
+  try {
+    const result = await newsletterLimiter.limit(ip);
+
+    return result.success
+      ? { allowed: true, degraded: false }
+      : { allowed: false, degraded: false, limit: 'ip-hourly' };
+  } catch (error) {
+    console.error(
+      '[rateLimit] Upstash unreachable for a newsletter signup — allowing:',
+      error
+    );
+
+    return { allowed: true, degraded: true };
+  }
+}

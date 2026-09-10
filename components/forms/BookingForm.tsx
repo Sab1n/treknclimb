@@ -1,14 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import Link from 'next/link';
 import Script from 'next/script';
 
 import {
   bookingFormSchema,
   type BookingFormValues,
 } from '../../lib/validators/booking';
+import { Field, inputClass } from './Field';
+import CountrySelect from './CountrySelect';
+import { CONSENT_STATEMENT } from '../../lib/consent';
 
 const RENDERED_AT_ID = 'tnc-rendered-at';
 
@@ -26,6 +30,20 @@ export interface TripOption {
  * after mount rather than during render, for the same reason as the /trips
  * filters — reading the query string during render would bail this subtree out
  * of static generation and leave a fallback in the HTML instead of the form.
+ *
+ * ## Validation is inline, always
+ *
+ * Every failure renders next to the field that caused it, in `role="alert"`
+ * text wired to the input with `aria-describedby` (see `Field`). **No
+ * `alert()`, and no browser validation bubbles** — the `noValidate` attribute
+ * on the form suppresses those deliberately, because they cannot be styled,
+ * they show one message at a time, and they disappear on the next click. The
+ * schema is the only source of validation messages, and it is the same schema
+ * the server runs.
+ *
+ * `shouldFocusError` moves focus to the first field that failed, so a keyboard
+ * or screen-reader user is taken to the problem rather than left at the submit
+ * button wondering why nothing happened.
  */
 export default function BookingForm({
   trips,
@@ -60,21 +78,28 @@ export default function BookingForm({
 
   const {
     register,
+    control,
     handleSubmit,
     setValue,
     setError,
     formState: { errors, isSubmitting },
   } = useForm<BookingFormValues>({
     resolver: zodResolver(bookingFormSchema),
+    // The default, set explicitly because it is load-bearing: an unticked
+    // consent box has to move focus to itself, not just colour a message red.
+    shouldFocusError: true,
     defaultValues: {
       name: '',
       email: '',
       phone: '',
+      nationality: '',
       tripSlug: '',
       preferredDate: '',
       travellers: 2,
       message: '',
       preferredChannel: 'email',
+      // Unticked. A pre-ticked consent box is not consent.
+      consent: false,
     },
   });
 
@@ -121,16 +146,21 @@ export default function BookingForm({
 
       if (!response.ok) {
         // The server validates independently, so map its field errors back
-        // onto the inputs rather than showing one generic message.
+        // onto the inputs rather than showing one generic message. The last
+        // one set with `shouldFocus` moves focus there, same as a client-side
+        // failure would.
         if (result.fieldErrors) {
-          for (const [field, message] of Object.entries(
+          const entries = Object.entries(
             result.fieldErrors as Record<string, string>
-          )) {
-            setError(field as keyof BookingFormValues, {
-              type: 'server',
-              message,
-            });
-          }
+          );
+
+          entries.forEach(([field, message], index) => {
+            setError(
+              field as keyof BookingFormValues,
+              { type: 'server', message },
+              { shouldFocus: index === 0 }
+            );
+          });
         }
 
         setSubmitError(result.error ?? 'Something went wrong. Please try again.');
@@ -139,7 +169,8 @@ export default function BookingForm({
 
       // A null reference means the submission was silently discarded as spam.
       // Send it to the same confirmation either way — a bot learns nothing,
-      // and a false positive at least sees a sane page.
+      // and a false positive at least sees a sane page. It is not lost: the
+      // endpoint records every rejection to RejectedSubmissions.
       window.location.assign(
         result.reference
           ? `/contact/confirmation?ref=${encodeURIComponent(result.reference)}`
@@ -152,9 +183,13 @@ export default function BookingForm({
     }
   }
 
+  const consentErrorId = 'consent-error';
+
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
+      // Suppresses the browser's own validation bubbles. Every message on this
+      // form comes from the shared Zod schema and renders inline.
       noValidate
       className="flex flex-col gap-5"
     >
@@ -163,7 +198,10 @@ export default function BookingForm({
         display:none — some bots skip anything invisible — and hidden from
         assistive tech with aria-hidden and tabIndex -1.
       */}
-      <div aria-hidden="true" className="absolute left-[-9999px] top-0 h-0 w-0 overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="absolute left-[-9999px] top-0 h-0 w-0 overflow-hidden"
+      >
         <label htmlFor="company">Company</label>
         <input
           id="company"
@@ -177,41 +215,81 @@ export default function BookingForm({
       <input type="hidden" id={RENDERED_AT_ID} name="renderedAt" />
 
       <Field label="Your name" error={errors.name?.message} htmlFor="name" required>
-        <input
-          id="name"
-          type="text"
-          autoComplete="name"
-          {...register('name')}
-          className={inputClass(!!errors.name)}
-        />
+        {(field) => (
+          <input
+            {...field}
+            type="text"
+            autoComplete="name"
+            {...register('name')}
+            className={inputClass(!!errors.name)}
+          />
+        )}
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Email" error={errors.email?.message} htmlFor="email" required>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            {...register('email')}
-            className={inputClass(!!errors.email)}
-          />
+          {(field) => (
+            <input
+              {...field}
+              type="email"
+              autoComplete="email"
+              {...register('email')}
+              className={inputClass(!!errors.email)}
+            />
+          )}
         </Field>
 
         <Field
           label="Phone or WhatsApp"
-          hint="Optional, but faster"
+          hint="Optional"
           error={errors.phone?.message}
           htmlFor="phone"
         >
-          <input
-            id="phone"
-            type="tel"
-            autoComplete="tel"
-            {...register('phone')}
-            className={inputClass(!!errors.phone)}
-          />
+          {(field) => (
+            <input
+              {...field}
+              type="tel"
+              autoComplete="tel"
+              {...register('phone')}
+              className={inputClass(!!errors.phone)}
+            />
+          )}
         </Field>
       </div>
+
+      {/*
+        Nationality is required because the quote depends on it: Nepal's
+        trekking permit fees and visa rules differ by nationality, so we cannot
+        price a trip accurately without knowing it. A deliberate amendment to
+        SRS §11 — see CLAUDE.md.
+
+        `Controller` rather than `register` because CountrySelect is not a
+        native input: it has no name attribute for React Hook Form to hook
+        into, so RHF hands it a value and an onChange instead.
+      */}
+      <Field
+        label="Nationality"
+        hint="It changes your permit fee and visa"
+        error={errors.nationality?.message}
+        htmlFor="nationality"
+        required
+      >
+        {(field) => (
+          <Controller
+            name="nationality"
+            control={control}
+            render={({ field: rhf }) => (
+              <CountrySelect
+                control={field}
+                value={rhf.value ?? ''}
+                onChange={rhf.onChange}
+                onBlur={rhf.onBlur}
+                hasError={!!errors.nationality}
+              />
+            )}
+          />
+        )}
+      </Field>
 
       <Field
         label="Which trip?"
@@ -219,18 +297,20 @@ export default function BookingForm({
         error={errors.tripSlug?.message}
         htmlFor="tripSlug"
       >
-        <select
-          id="tripSlug"
-          {...register('tripSlug')}
-          className={inputClass(!!errors.tripSlug)}
-        >
-          <option value="">Not sure yet — help me choose</option>
-          {trips.map((trip) => (
-            <option key={trip.slug} value={trip.slug}>
-              {trip.title}
-            </option>
-          ))}
-        </select>
+        {(field) => (
+          <select
+            {...field}
+            {...register('tripSlug')}
+            className={inputClass(!!errors.tripSlug)}
+          >
+            <option value="">Not sure yet — help me choose</option>
+            {trips.map((trip) => (
+              <option key={trip.slug} value={trip.slug}>
+                {trip.title}
+              </option>
+            ))}
+          </select>
+        )}
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
@@ -240,12 +320,14 @@ export default function BookingForm({
           error={errors.preferredDate?.message}
           htmlFor="preferredDate"
         >
-          <input
-            id="preferredDate"
-            type="date"
-            {...register('preferredDate')}
-            className={inputClass(!!errors.preferredDate)}
-          />
+          {(field) => (
+            <input
+              {...field}
+              type="date"
+              {...register('preferredDate')}
+              className={inputClass(!!errors.preferredDate)}
+            />
+          )}
         </Field>
 
         <Field
@@ -254,29 +336,38 @@ export default function BookingForm({
           htmlFor="travellers"
           required
         >
-          <input
-            id="travellers"
-            type="number"
-            min={1}
-            max={50}
-            {...register('travellers')}
-            className={inputClass(!!errors.travellers)}
-          />
+          {(field) => (
+            <input
+              {...field}
+              type="number"
+              min={1}
+              max={50}
+              {...register('travellers')}
+              className={inputClass(!!errors.travellers)}
+            />
+          )}
         </Field>
       </div>
 
       <Field
         label="Anything we should know?"
-        hint="Fitness, previous trekking, questions — optional"
+        hint="Optional"
         error={errors.message?.message}
         htmlFor="message"
       >
-        <textarea
-          id="message"
-          rows={5}
-          {...register('message')}
-          className={inputClass(!!errors.message)}
-        />
+        {(field) => (
+          <textarea
+            {...field}
+            rows={5}
+            // Placeholder, never a label substitute: it disappears the moment
+            // someone types, and several screen readers do not announce it at
+            // all. The label above carries the meaning; this only carries
+            // examples.
+            placeholder="Accessibility needs, a custom itinerary, dietary requirements, or anything else we should know."
+            {...register('message')}
+            className={inputClass(!!errors.message)}
+          />
+        )}
       </Field>
 
       <fieldset>
@@ -301,6 +392,51 @@ export default function BookingForm({
           ))}
         </div>
       </fieldset>
+
+      {/*
+        Consent. Unticked by default, required to submit, and checked again on
+        the server — consent that only the client enforces is a UI convention,
+        not consent.
+
+        The Privacy Policy link sits outside the <label> on purpose. A link
+        nested inside a label competes with it: clicking the link can toggle the
+        checkbox instead of navigating, and the behaviour differs between
+        browsers. Keeping it adjacent means the label text still toggles the box
+        and the link still just navigates.
+      */}
+      <div>
+        <div className="flex items-start gap-3">
+          <input
+            id="consent"
+            type="checkbox"
+            aria-invalid={errors.consent ? true : undefined}
+            aria-describedby={errors.consent ? consentErrorId : undefined}
+            {...register('consent')}
+            className="mt-0.5 h-4 w-4 shrink-0"
+          />
+
+          <p className="text-sm">
+            <label htmlFor="consent">{CONSENT_STATEMENT}</label>{' '}
+            <Link
+              href="/privacy-policy"
+              className="font-semibold underline underline-offset-4"
+            >
+              Privacy Policy
+            </Link>
+            <span className="ml-2 text-muted">Required</span>
+          </p>
+        </div>
+
+        {errors.consent && (
+          <p
+            id={consentErrorId}
+            role="alert"
+            className="mt-1.5 text-sm text-error"
+          >
+            {errors.consent.message}
+          </p>
+        )}
+      </div>
 
       {turnstileSiteKey && (
         <>
@@ -342,51 +478,12 @@ export default function BookingForm({
           {isSubmitting ? 'Sending…' : 'Get my free itinerary'}
         </button>
 
-        {/* Risk reversal, directly under the button. */}
+        {/* Risk reversal, directly under the button. Nothing else sits here —
+            no newsletter box, no second call to action. */}
         <p className="mt-3 text-sm text-muted">
           No payment now. Deposit only after you approve the plan.
         </p>
       </div>
     </form>
-  );
-}
-
-function inputClass(hasError: boolean): string {
-  return `w-full rounded border bg-white px-3 py-2.5 text-sm outline-none transition-colors focus:border-ink ${
-    hasError ? 'border-error' : 'border-hairline'
-  }`;
-}
-
-function Field({
-  label,
-  hint,
-  error,
-  htmlFor,
-  required = false,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  error?: string;
-  htmlFor: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label htmlFor={htmlFor} className="text-sm font-semibold">
-        {label}
-        {required && <span className="text-error"> *</span>}
-        {hint && <span className="ml-2 font-normal text-muted">{hint}</span>}
-      </label>
-
-      <div className="mt-1.5">{children}</div>
-
-      {error && (
-        <p role="alert" className="mt-1.5 text-sm text-error">
-          {error}
-        </p>
-      )}
-    </div>
   );
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import AffiliationStrip from './AffiliationStrip';
+import NewsletterSignup from '../forms/NewsletterSignup';
 
 const DESTINATION_LINKS = [
   { label: 'Nepal', href: '/nepal' },
@@ -70,6 +71,18 @@ export default function Footer() {
           <div>
             <AffiliationStrip variant="dark" />
           </div>
+        </div>
+
+        {/*
+          Newsletter, sitewide. The footer is the one placement that is always
+          below whatever the page was actually for, so it cannot compete with
+          it — which is why the trip pages get this and nothing higher up.
+        */}
+        <div className="mt-12 max-w-xl border-t border-white/10 pt-8">
+          <NewsletterSignup
+            variant="dark"
+            turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+          />
         </div>
 
         <div className="mt-12 flex flex-col gap-4 border-t border-white/10 pt-6 text-sm text-paper/60 sm:flex-row sm:items-center sm:justify-between">
