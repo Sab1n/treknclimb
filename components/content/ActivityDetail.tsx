@@ -9,7 +9,7 @@ import TripCard from './TripCard';
 
 import { IActivityPopulated } from '../../models/Activity';
 import { ITripPopulated } from '../../models/Trip';
-import { tripPath } from '../../lib/urls';
+import { tripPath, filteredTripsPath } from '../../lib/urls';
 import { DIFFICULTY_GRADES, GRADE_ORDER } from '../../lib/difficultyGrades';
 
 const SITE_URL = 'https://treknclimb.com';
@@ -127,13 +127,43 @@ export default function ActivityDetail({
             </div>
 
             {trips.length > 0 ? (
-              <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {trips.map((trip) => (
-                  <li key={String(trip._id)}>
-                    <TripCard trip={trip} />
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                  {trips.map((trip) => (
+                    <li key={String(trip._id)}>
+                      <TripCard trip={trip} />
+                    </li>
+                  ))}
+                </ul>
+
+                {/*
+                  The progression out of this page: learn what the activity is
+                  here, then compare the options within it on /trips.
+
+                  This is the one place that link belongs. Activity cards
+                  elsewhere on the site link to *this* page, never past it to a
+                  filter state — this page carries its own metadata, intro copy,
+                  suitability and grades table and is the landing page for
+                  "trekking in Nepal", while the filtered listing canonicals back
+                  to plain /trips and would orphan it.
+                */}
+                <div className="mt-8 rounded-lg border border-hairline bg-white p-6">
+                  <Link
+                    href={filteredTripsPath({
+                      destination: destination.slug,
+                      activity: activity.slug,
+                    })}
+                    className="font-semibold underline underline-offset-4"
+                  >
+                    Compare all {trips.length}{' '}
+                    {activity.name.toLowerCase()} trips by price, duration and
+                    difficulty
+                  </Link>
+                  <p className="mt-2 text-sm text-muted">
+                    Opens the full listing with this activity already selected.
+                  </p>
+                </div>
+              </>
             ) : (
               /*
                 Required empty state: an activity with no published trips yet.

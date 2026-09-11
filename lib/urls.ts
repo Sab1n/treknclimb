@@ -58,3 +58,49 @@ export function blogCategoryPath(
 ): string {
   return `/blog/category/${category.slug}`;
 }
+
+/**
+ * The activity listing for a destination — `/nepal/activities`.
+ *
+ * `activities` is a static segment sitting beside the dynamic `[slug]`, and
+ * Next resolves static first. That is also why `activities` is on the reserved
+ * slug list: an activity slugged `activities` would build a page this route
+ * permanently wins.
+ */
+export function activitiesListingPath(
+  destination: Pick<IDestination, 'slug'>
+): string {
+  return `/${destination.slug}/activities`;
+}
+
+/**
+ * The /trips listing, pre-filtered.
+ *
+ * **Only ever linked to from a page that has already done its own job.** An
+ * activity page ranks for "trekking in Nepal" and carries the intro copy,
+ * suitability and grades table; the filtered listing is where someone goes
+ * *after* reading it, to compare options on price and duration. Linking cards
+ * straight past the activity page to a filter state would orphan a page that
+ * has its own metadata and canonical — and the filtered URL canonicals back to
+ * plain `/trips`, so it cannot inherit the ranking either.
+ *
+ * The keys match `lib/tripFilters.ts` exactly, which is what makes the link
+ * work with no code in between.
+ */
+export function filteredTripsPath(filters: {
+  destination?: string;
+  activity?: string;
+  duration?: string;
+  difficulty?: string;
+  price?: string;
+}): string {
+  const params = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) params.set(key, value);
+  }
+
+  const query = params.toString();
+
+  return query ? `/trips?${query}` : '/trips';
+}

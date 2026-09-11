@@ -48,6 +48,30 @@ export interface IDestination extends ISeoFields {
   bestMonthsLabel?: string;
   permitComplexity?: PermitComplexity;
 
+  /**
+   * The editorial body of `/<destination>/activities`.
+   *
+   * **A new field, added because nothing existing fits.** `description` is a
+   * one-paragraph card blurb already rendered on /destinations and in the
+   * destination hero — reusing it would put the same text on three URLs, which
+   * is duplicate content on a page whose entire purpose is to rank. The four
+   * labels above are table cells ("9–18 days", "Mar–May, Sep–Nov"), not prose.
+   *
+   * This is the substance the page needs: what adventure travel in the region
+   * actually involves, when the seasons are, what the permit situation is, and
+   * how to choose between activity types. Card grids do not rank; this does.
+   *
+   * **Markdown subset**, rendered through `PostBody` — the same parser the blog
+   * uses, so nothing reaches `dangerouslySetInnerHTML` and the client can
+   * structure it with `##` headings rather than us fixing the sections in code.
+   *
+   * One field rather than four (`seasonsInfo`, `permitsInfo`, …) on purpose:
+   * separate fields would force a page shape on every destination and render
+   * half-built when three of them are blank. Optional, so the page falls back
+   * to a shorter treatment until it is written.
+   */
+  activitiesIntro?: string;
+
   // Added at runtime by `timestamps: true`. Declared so the sitemap can read
   // `lastmod` and pages can surface a last-updated date for AI crawlers.
   createdAt: Date;
@@ -78,6 +102,7 @@ const DestinationSchema = new Schema<IDestination>(
     maxAltitudeLabel: { type: String, trim: true },
     bestMonthsLabel: { type: String, trim: true },
     permitComplexity: { type: String, enum: [...PERMIT_COMPLEXITIES] },
+    activitiesIntro: { type: String },
 
     ...seoFields,
   },

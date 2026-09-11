@@ -1,6 +1,13 @@
 import { getCldImageUrl } from 'next-cloudinary';
 import { ITripPopulated } from '../models/Trip';
 import type { TripFilterMeta } from '../lib/tripFilters';
+import type { TripDifficulty } from '../models/Trip';
+import { GRADE_ORDER } from '../lib/difficultyGrades';
+import {
+  formatRange,
+  formatDays,
+  formatMetres,
+} from '../components/content/ActivityOverviewCard';
 
 /**
  * Serialized shapes for the server/client boundary.
@@ -126,4 +133,114 @@ export function toTripFilterMeta(trip: ITripPopulated): TripFilterMeta {
     featured: trip.featured,
     displayOrder: trip.displayOrder,
   };
+}
+
+/* ------------------------------------------------------------------ *
+ * Activity comparison
+ * ------------------------------------------------------------------ */
+
+/**
+ * One row of the activity comparison table, flat and serializable.
+ *
+ * The table is a Client Component now — sortable headers need state — so an
+ * `IActivity` cannot cross the boundary: its `_id` and `destination` are
+ * `Types.ObjectId`, which are class instances rather than plain objects, and
+ * React refuses to serialize them.
+ *
+ * Every column is pre-resolved to a **sortable primitive plus a display
+ * string**. The alternative — passing formatted text and parsing it back in
+ * the browser to sort — is how "11–14 days" ends up sorting after "5 days".
+ * `sortAltitude` and friends are what the comparator actually reads;
+ * `altitude` is what the cell renders.
+ *
+ * `null` sort keys are activities with no published trips. They sort last in
+ * both directions, because an unknown is not a small value.
+ */
+export interface ActivityComparisonRow {
+  id: string;
+  name: string;
+  href: string;
+
+  altitude: string;
+  /** Highest altitude reached, for sorting. Null when no trip records one. */
+  sortAltitude: number | null;
+
+  length: string;
+  /** Longest trip in days, for sorting. */
+  sortLength: number | null;
+
+  fitness: string;
+  /** Index into GRADE_ORDER of the hardest grade that occurs. */
+  sortFitness: number | null;
+
+  tripCount: number;
+}
+
+/**
+ * Builds the comparison rows on the server.
+ *
+ * The display strings and the sort keys are produced together, from the same
+ * values, so they cannot disagree — which is the failure mode of formatting in
+ * one place and sorting in another.
+ *
+ * `sortAltitude` and `sortLength` use the **maximum** of each range. Sorting a
+ * range needs one number, and the top of the range is what someone comparing
+ * "which of these goes highest" is asking about.
+ */
+export function toActivityComparisonRows(
+  activities: { _id: unknown; name: string; slug: string }[],
+  destinationSlug: string,
+  stats: Map<
+    string,
+    {
+      tripCount: number;
+      minDuration: number | null;
+      maxDuration: number | null;
+      minAltitudeM: number | null;
+      maxAltitudeM: number | null;
+      difficulties: TripDifficulty[];
+    }
+  >
+): ActivityComparisonRow[] {
+  return activities.map((activity) => {
+    const row = stats.get(String(activity._id));
+
+    const ordered = GRADE_ORDER.filter((grade) =>
+      (row?.difficulties ?? []).includes(grade)
+    );
+
+    return {
+      id: String(activity._id),
+      name: activity.name,
+      href: `/${destinationSlug}/${activity.slug}`,
+
+      altitude:
+        formatRange(
+          row?.minAltitudeM ?? null,
+          row?.maxAltitudeM ?? null,
+          formatMetres
+        ) ?? '—',
+      sortAltitude: row?.maxAltitudeM ?? null,
+
+      length:
+        formatRange(row?.minDuration ?? null, row?.maxDuration ?? null, formatDays)
+          ?.concat(' days') ?? '—',
+      sortLength: row?.maxDuration ?? null,
+
+      fitness:
+        ordered.length === 0
+          ? '—'
+          : ordered.length === 1
+            ? ordered[0]
+            : `${ordered[0]} to ${ordered[ordered.length - 1]}`,
+      // Index of the hardest grade present, so "Easy to Moderate" sorts below
+      // "Challenging" — the top of the range is what makes an activity hard.
+      sortFitness:
+        ordered.length === 0
+          ? null
+          : GRADE_ORDER.indexOf(ordered[ordered.length - 1]),
+
+      tripCount: row?.tripCount ?? 0,
+    };
+  });
 }

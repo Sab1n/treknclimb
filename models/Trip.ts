@@ -4,42 +4,23 @@ import { IActivity } from './Activity';
 import { ISeoFields, seoFields } from './shared/seo';
 import { reservedSlugValidator } from './shared/reservedSlugs';
 import { PublishStatus, PUBLISH_STATUSES } from './shared/status';
+import {
+  MONTHS,
+  TRIP_DIFFICULTIES,
+  type Month,
+  type TripDifficulty,
+} from './shared/tripVocab';
 
-/* ------------------------------------------------------------------ *
- * Enum-style unions
- *
- * `as const` freezes the array into a readonly tuple of string literals
- * rather than widening it to `string[]`. `(typeof MONTHS)[number]` then
- * indexes that tuple by every numeric key at once, producing the union
- * 'January' | 'February' | ... — one source of truth for both the compiler
- * and the runtime `enum:` validator below.
- * ------------------------------------------------------------------ */
-
-export const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const;
-
-export type Month = (typeof MONTHS)[number];
-
-export const TRIP_DIFFICULTIES = [
-  'Easy',
-  'Moderate',
-  'Challenging',
-  'Extreme',
-] as const;
-
-export type TripDifficulty = (typeof TRIP_DIFFICULTIES)[number];
+/*
+ * The month and difficulty vocabularies live in `shared/tripVocab.ts` and are
+ * re-exported here so every existing `from './Trip'` import keeps working.
+ * They moved because the trip editor's month and difficulty controls are
+ * Client Components, and importing them from this file would drag Mongoose —
+ * and through it the MongoDB driver's `net` and `tls` requires — into the
+ * browser bundle.
+ */
+export { MONTHS, TRIP_DIFFICULTIES } from './shared/tripVocab';
+export type { Month, TripDifficulty } from './shared/tripVocab';
 
 
 /* ------------------------------------------------------------------ *

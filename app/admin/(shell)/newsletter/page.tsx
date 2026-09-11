@@ -1,17 +1,17 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 
-import { hasAdminSession } from '../../../lib/adminAuth';
+import { hasAdminSession } from '../../../../lib/adminAuth';
 import {
   getSubscribers,
   getSubscriberCounts,
-} from '../../../lib/queries/newsletter';
-import { providerStatus } from '../../../lib/newsletterProvider';
+} from '../../../../lib/queries/newsletter';
+import { providerStatus } from '../../../../lib/newsletterProvider';
 import {
   SUBSCRIBER_STATUSES,
   type SubscriberStatus,
-} from '../../../models/NewsletterSubscriber';
+} from '../../../../models/NewsletterSubscriber';
 
 /**
  * Read-only newsletter admin.
@@ -47,11 +47,12 @@ export default async function AdminNewsletterPage({
 }) {
   /*
    * A second, independent check. `middleware.ts` already blocks this path, but
-   * a middleware matcher is one config edit from missing a route, and the data
-   * below is real people's email addresses. Two gates, neither relying on the
-   * other.
+   * it can only verify the token's signature — it runs on the edge and cannot
+   * reach the database to ask whether the session has been revoked. This is
+   * where `tokenVersion` is actually checked, and it is also the gate that
+   * still holds if the matcher is ever edited to miss this route.
    */
-  if (!(await hasAdminSession())) notFound();
+  if (!(await hasAdminSession())) redirect('/admin/login?next=/admin/newsletter');
 
   const { status } = await searchParams;
 
@@ -69,7 +70,7 @@ export default async function AdminNewsletterPage({
   const provider = providerStatus();
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="flex flex-col gap-2">
       <h1 className="font-display text-2xl font-extrabold tracking-display">
         Newsletter subscribers
       </h1>
@@ -133,7 +134,7 @@ export default async function AdminNewsletterPage({
       </div>
 
       <div className="mt-6 overflow-x-auto rounded-lg border border-hairline bg-white">
-        <table className="w-full min-w-[48rem] border-collapse text-left text-sm">
+        <table className="w-full min-w-3xl border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-hairline bg-paper">
               <th scope="col" className="px-4 py-3 font-semibold">Email</th>
@@ -179,12 +180,7 @@ export default async function AdminNewsletterPage({
         </table>
       </div>
 
-      <p className="mt-6 text-sm">
-        <Link href="/admin" className="underline underline-offset-4">
-          Back to admin
-        </Link>
-      </p>
-    </main>
+    </div>
   );
 }
 

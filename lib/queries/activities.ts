@@ -1,15 +1,18 @@
 import { cache } from 'react';
 import { connectDB } from '../db';
 import Activity, { IActivityPopulated } from '../../models/Activity';
-import Trip, { ITripPopulated } from '../../models/Trip';
+import Trip, { ITripPopulated, TripDifficulty } from '../../models/Trip';
+import Destination from '../../models/Destination';
 
 /*
- * Side-effect import: `.populate('destination')` below resolves the ref by
- * model name at query time, and a model only registers with Mongoose when its
- * module is first imported. Without this line the populate works or throws
+ * The `Destination` import above is load-bearing twice over. It is queried
+ * directly by `getDestinationSlugsWithActivities`, and it is what registers
+ * the model with Mongoose so `.populate('destination')` can resolve the ref by
+ * name at query time. It used to be a bare side-effect import for the second
+ * reason alone; **if the direct use ever goes away, put the bare import back**
+ * rather than deleting the line, or the populate starts working or throwing
  * MissingSchemaError depending on what else the render happened to import.
  */
-import '../../models/Destination';
 
 /**
  * One activity by slug, with its destination populated.
@@ -61,4 +64,106 @@ export async function getActivityRoutes(): Promise<
     destinationSlug: activity.destination.slug,
     activitySlug: activity.slug,
   }));
+}
+
+/**
+ * Per-activity statistics derived from that activity's published trips.
+ *
+ * **Everything here is derived, nothing is authored.** One `$group` over the
+ * destination's published trips produces all of it, which matters at twelve
+ * activities as much as at three: the alternative is one query per activity per
+ * dimension.
+ *
+ * `$min` and `$max` skip missing values in MongoDB, so the optional fields —
+ * `maxAltitudeM`, `difficulty` — simply do not contribute rather than
+ * poisoning the range with nulls. An activity with no published trips gets no
+ * row at all, and the caller renders dashes.
+ */
+export interface ActivityStats {
+  tripCount: number;
+  minDuration: number | null;
+  maxDuration: number | null;
+  minPrice: number | null;
+  maxPrice: number | null;
+  minAltitudeM: number | null;
+  maxAltitudeM: number | null;
+  /** Every difficulty grade that occurs, unordered. */
+  difficulties: TripDifficulty[];
+}
+
+/**
+ * Stats for every activity under a destination, keyed by stringified activity
+ * id.
+ *
+ * Keys are strings because two ObjectId instances holding the same value are
+ * different object references and would never match as Map keys.
+ */
+export const getActivityStats = cache(
+  async (
+    destinationId: IActivityPopulated['destination']['_id']
+  ): Promise<Map<string, ActivityStats>> => {
+    await connectDB();
+
+    const rows = await Trip.aggregate<{
+      _id: IActivityPopulated['_id'] | null;
+      tripCount: number;
+      minDuration: number | null;
+      maxDuration: number | null;
+      minPrice: number | null;
+      maxPrice: number | null;
+      minAltitudeM: number | null;
+      maxAltitudeM: number | null;
+      difficulties: (TripDifficulty | null)[];
+    }>([
+      { $match: { destination: destinationId, status: 'published' } },
+      {
+        $group: {
+          _id: '$activity',
+          tripCount: { $sum: 1 },
+          minDuration: { $min: '$durationDays' },
+          maxDuration: { $max: '$durationDays' },
+          minPrice: { $min: '$price' },
+          maxPrice: { $max: '$price' },
+          minAltitudeM: { $min: '$maxAltitudeM' },
+          maxAltitudeM: { $max: '$maxAltitudeM' },
+          difficulties: { $addToSet: '$difficulty' },
+        },
+      },
+    ]);
+
+    return new Map(
+      rows
+        .filter((row) => row._id !== null)
+        .map((row) => [
+          String(row._id),
+          {
+            tripCount: row.tripCount,
+            minDuration: row.minDuration ?? null,
+            maxDuration: row.maxDuration ?? null,
+            minPrice: row.minPrice ?? null,
+            maxPrice: row.maxPrice ?? null,
+            minAltitudeM: row.minAltitudeM ?? null,
+            maxAltitudeM: row.maxAltitudeM ?? null,
+            // A trip with no difficulty contributes nothing rather than a null
+            // that would render as an empty grade.
+            difficulties: row.difficulties.filter(
+              (grade): grade is TripDifficulty => grade != null
+            ),
+          },
+        ])
+    );
+  }
+);
+
+/** Destination slugs that actually have an activity layer, for the listing. */
+export async function getDestinationSlugsWithActivities(): Promise<string[]> {
+  await connectDB();
+
+  const destinations = await Destination.find({ hasActivities: true })
+    .select('slug')
+    .sort({ displayOrder: 1 })
+    .lean<{ slug: string }[]>()
+    .exec();
+
+  return destinations.map((destination) => destination.slug);
 }

@@ -61,7 +61,15 @@ export type RejectedForm = (typeof REJECTED_FORMS)[number];
 
 export interface IRejectedSubmission {
   _id: Types.ObjectId;
-  form: RejectedForm;
+  /**
+   * Optional, and it has to be: rows written before the schema path existed
+   * have no `form` at all. Typing it `RejectedForm` would be the compiler
+   * asserting something about historical data that is not true, and the
+   * rejection log is read exactly when something has already gone wrong — the
+   * worst moment for a page to crash on an undefined it was promised could not
+   * happen. Reads narrow it; the admin list renders "unknown".
+   */
+  form?: RejectedForm;
   reason: RejectionReason;
   /** Which limit, how many milliseconds, which Turnstile error code. */
   detail?: string;
@@ -87,6 +95,25 @@ export interface IRejectedSubmission {
 
 const RejectedSubmissionSchema = new Schema<IRejectedSubmission>(
   {
+    /*
+     * This path was missing while the interface already declared it, which is a
+     * specific and quiet kind of Mongoose bug: `strict` defaults to true, so a
+     * key with no schema path is **dropped on write without an error**. Every
+     * row written before this line has no `form` at all, even though
+     * `logRejection` has always passed one and TypeScript has always believed
+     * it was readable — the interface is an assertion about the schema, not a
+     * check of it.
+     *
+     * Not `required`, precisely because of those existing rows: requiring it
+     * would not repair them and would start failing writes on the one code path
+     * that must never throw. The admin list shows "unknown" for a missing value.
+     */
+    form: {
+      type: String,
+      enum: [...REJECTED_FORMS],
+      index: true,
+    },
+
     reason: {
       type: String,
       required: true,

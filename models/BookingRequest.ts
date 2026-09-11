@@ -1,5 +1,11 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
 import { ITrip } from './Trip';
+import {
+  BOOKING_STATUSES,
+  CONTACT_CHANNELS,
+  type BookingStatus,
+  type ContactChannel,
+} from './shared/bookingStatus';
 
 /**
  * A guest-submitted inquiry. The single conversion event on the site.
@@ -14,16 +20,19 @@ import { ITrip } from './Trip';
  * inquiry and what the admin list needs to sort and filter it.
  */
 
-export const BOOKING_STATUSES = [
-  'Pending',
-  'Contacted',
-  'Confirmed',
-  'Closed',
-] as const;
-export type BookingStatus = (typeof BOOKING_STATUSES)[number];
-
-export const CONTACT_CHANNELS = ['email', 'whatsapp', 'either'] as const;
-export type ContactChannel = (typeof CONTACT_CHANNELS)[number];
+/*
+ * The vocabularies live in `shared/bookingStatus.ts` and are re-exported here
+ * so every existing `from './BookingRequest'` import keeps working. They had to
+ * move: the admin status dropdown is a Client Component, and importing them
+ * from this file dragged Mongoose — and through it the MongoDB driver's `net`
+ * and `tls` requires — into the browser bundle.
+ */
+export {
+  BOOKING_STATUSES,
+  CONTACT_CHANNELS,
+  type BookingStatus,
+  type ContactChannel,
+} from './shared/bookingStatus';
 
 export interface IBookingRequest {
   _id: Types.ObjectId;
