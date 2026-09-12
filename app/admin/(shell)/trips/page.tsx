@@ -2,7 +2,12 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 
-import { PageHeading, StatCard, EmptyRow } from '../../../../components/admin/ui';
+import {
+  PageHeading,
+  StatCard,
+  EmptyRow,
+  ButtonLink,
+} from '../../../../components/admin/ui';
 import { hasAdminSession } from '../../../../lib/adminAuth';
 import { getTripsForAdmin } from '../../../../lib/queries/adminTrips';
 import { formatDateTime } from '../../../../lib/adminTime';
@@ -41,6 +46,7 @@ export default async function AdminTripsPage() {
       <PageHeading
         title="Trips"
         description="Every trip, newest edit first. Drafts and archived trips are listed here and excluded from the site."
+        actions={<ButtonLink href="/admin/trips/new">New trip</ButtonLink>}
       />
 
       <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -66,8 +72,14 @@ export default async function AdminTripsPage() {
           <tbody>
             {trips.length === 0 && (
               <EmptyRow colSpan={6}>
-                No trips yet. Seeded trips are created by{' '}
-                <code className="font-mono">scripts/seed-trips.ts</code>.
+                No trips yet.{' '}
+                <Link
+                  href="/admin/trips/new"
+                  className="underline underline-offset-4"
+                >
+                  Create the first one
+                </Link>
+                .
               </EmptyRow>
             )}
 
@@ -132,14 +144,14 @@ export default async function AdminTripsPage() {
       </div>
 
       {/*
-        Creating a trip is not built. Said plainly rather than left as a missing
-        button, because a "New trip" control that 404s is worse than none.
+        A trip cannot be created from the editor — five of its required fields
+        cannot exist yet, the cover image least of all, since an upload
+        signature is derived from a trip that already exists. Hence a separate
+        create screen rather than the editor opened against a blank document.
       */}
       <p className="text-sm text-muted">
-        New trips are still created by the seed and migration scripts. A create
-        flow needs a different screen from this one — a trip has six required
-        fields before it can save at all, so the editor cannot simply open
-        against a blank document.
+        New trips are created as drafts and are invisible on the site until
+        published.
       </p>
     </div>
   );

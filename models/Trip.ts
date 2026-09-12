@@ -264,6 +264,20 @@ const TripFaqSchema = new Schema<ITripFaq>({
  * Trip schema
  * ------------------------------------------------------------------ */
 
+/**
+ * Required only once the trip is live.
+ *
+ * Used by the five fields a draft cannot yet have. Written as a named function
+ * rather than inline so the rule reads the same on every field it guards, and
+ * so there is one place to change what "complete enough to publish" means.
+ *
+ * A normal function, not an arrow: Mongoose calls `required` with `this` bound
+ * to the document, and an arrow would capture the module scope instead.
+ */
+function requiredToPublish(this: { status?: PublishStatus }): boolean {
+  return this.status === 'published';
+}
+
 const TripSchema = new Schema<ITrip>(
   {
     title: { type: String, required: true, trim: true },
@@ -294,12 +308,36 @@ const TripSchema = new Schema<ITrip>(
       index: true,
     },
 
-    summary: { type: String, required: true },
-    answerBlock: { type: String, required: true },
-    description: { type: String, required: true },
+    /*
+     * The five fields below are **required to publish, not required to exist**.
+     *
+     * They were unconditionally required, and that made creating a trip
+     * impossible. `coverImage` is the proof: the only way to obtain one is a
+     * signed Cloudinary upload, and the signing endpoint derives the public ID
+     * from an existing trip's slug — so a cover image cannot exist before the
+     * trip does, and the trip could not be saved without one. A deadlock, not a
+     * missing feature.
+     *
+     * Loosening them outright would be wrong in the other direction: a trip
+     * with no description must never reach the site. So `status` is the gate.
+     * A draft is by definition unfinished; publishing is the act that claims it
+     * is not, and that is where the check belongs.
+     *
+     * This is the same conditional-required pattern the model already uses
+     * twice — `imageAlt` when there is an image, `maxAltitudeM` when the trip
+     * has an elevation profile. Non-arrow functions, because `this` has to be
+     * the document being validated.
+     *
+     * `archived` is deliberately not gated: archiving is how a trip is retired,
+     * and refusing to archive an incomplete one would trap it as a draft
+     * forever.
+     */
+    summary: { type: String, required: requiredToPublish },
+    answerBlock: { type: String, required: requiredToPublish },
+    description: { type: String, required: requiredToPublish },
 
-    coverImage: { type: String, required: true },
-    coverImageAlt: { type: String, required: true },
+    coverImage: { type: String, required: requiredToPublish },
+    coverImageAlt: { type: String, required: requiredToPublish },
     gallery: { type: [GalleryImageSchema], default: [] },
 
     durationDays: { type: Number, required: true, min: 1 },

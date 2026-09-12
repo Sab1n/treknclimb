@@ -167,9 +167,14 @@ export const adminTripSchema = z
      * `undefined` would leave whatever is already stored in place.
      */
     activity: z.string().trim(),
-    summary: z.string().trim().min(1, 'Summary is required').max(400),
-    answerBlock: z.string().trim().min(1, 'Answer block is required').max(2000),
-    description: z.string().trim().min(1, 'Description is required'),
+    /*
+     * Required to publish, not required to exist — matching the model. The
+     * emptiness check moved to a superRefine below, because it depends on
+     * `status`, and a field-level rule cannot see its siblings.
+     */
+    summary: z.string().trim().max(400),
+    answerBlock: z.string().trim().max(2000),
+    description: z.string().trim(),
     status: z.enum(PUBLISH_STATUSES),
     featured: z.boolean(),
 
@@ -219,12 +224,8 @@ export const adminTripSchema = z
       .transform((lines) => lines.filter((line) => line !== '')),
     faqs: z.array(faqSchema).max(40),
 
-    coverImage: z.string().trim().min(1, 'A cover image is required').max(300),
-    coverImageAlt: z
-      .string()
-      .trim()
-      .min(1, 'The cover image needs alt text')
-      .max(300),
+    coverImage: z.string().trim().max(300),
+    coverImageAlt: z.string().trim().max(300),
     gallery: z.array(gallerySchema).max(40),
 
     // --- seo ---
@@ -255,6 +256,49 @@ export const adminTripSchema = z
       path: ['discountedPrice'],
     }
   )
+  /*
+   * The publish gate.
+   *
+   * These five fields are optional on a draft and mandatory the moment the
+   * trip goes live — the same rule the model enforces, repeated here so the
+   * failure arrives keyed to a field the editor can highlight rather than as a
+   * Mongoose ValidationError discovered after a round trip.
+   *
+   * The messages say "to publish", not "is required", because the field is
+   * genuinely optional in the state the admin was just in. "Summary is
+   * required" on a draft that saved fine a minute ago reads as a bug.
+   */
+  .superRefine((data, ctx) => {
+    if (data.status !== 'published') return;
+
+    const gated: [keyof typeof data, string][] = [
+      ['summary', 'A summary is required to publish — it is the card and listing teaser'],
+      ['answerBlock', 'An answer block is required to publish — it is what the page is extracted from'],
+      ['description', 'A description is required to publish'],
+      ['coverImage', 'A cover image is required to publish — upload one on the Gallery tab'],
+      ['coverImageAlt', 'The cover image needs alt text before this can be published'],
+    ];
+
+    for (const [field, message] of gated) {
+      if (!data[field]) {
+        ctx.addIssue({ code: 'custom', message, path: [field] });
+      }
+    }
+  })
+  /*
+   * Alt text without an image is harmless; an image without alt text is not,
+   * and that holds on a draft too. Checked separately from the publish gate
+   * for exactly that reason.
+   */
+  .superRefine((data, ctx) => {
+    if (data.coverImage && !data.coverImageAlt) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'This image needs alt text',
+        path: ['coverImageAlt'],
+      });
+    }
+  })
   /*
    * Tier bounds and overlap.
    *
