@@ -6,6 +6,13 @@ import type { GalleryRow } from '../../../types/tripEditor';
 import { newRowKey } from '../../../types/tripEditor';
 import { RepeatableList, updateRow } from './RepeatableList';
 import { TextField } from '../fields';
+import {
+  uploadImage,
+  checkFile,
+  previewUrl,
+  UploadNotConfiguredError,
+  ACCEPTED_IMAGE_TYPES,
+} from '../upload';
 
 /**
  * The gallery editor: cover image, multi-upload, drag-to-reorder, alt text.
@@ -44,26 +51,12 @@ import { TextField } from '../fields';
  * gets `"image"` typed into it.
  */
 
-/** What Cloudinary returns from a successful upload. Only these are used. */
-interface CloudinaryUploadResponse {
-  public_id?: string;
-  error?: { message?: string };
-}
-
 interface PendingUpload {
   id: string;
   filename: string;
   status: 'uploading' | 'failed';
   error?: string;
 }
-
-/*
- * Checked before the file leaves the browser. Cloudinary enforces its own
- * limits, but finding out after a 20 MB upload has been pushed over a hotel
- * wifi connection in Pokhara is a worse way to learn it.
- */
-const MAX_BYTES = 10 * 1024 * 1024;
-const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
 
 export default function GalleryUploader({
   tripId,
@@ -88,58 +81,6 @@ export default function GalleryUploader({
   const [configError, setConfigError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  /** Uploads one file and returns its Cloudinary public ID, or throws. */
-  async function uploadOne(file: File): Promise<string> {
-    const signResponse = await fetch('/api/admin/uploads/sign', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ tripId }),
-    });
-
-    if (!signResponse.ok) {
-      const body = await signResponse.json().catch(() => ({}));
-
-      // 503 means Cloudinary is not configured — a deployment problem, not a
-      // problem with this file, so it is surfaced once rather than per file.
-      if (signResponse.status === 503) {
-        setConfigError(body.error ?? 'Image upload is not configured.');
-      }
-
-      throw new Error(body.error ?? 'Could not authorise the upload.');
-    }
-
-    const signature = await signResponse.json();
-
-    /*
-     * These fields and no others. Cloudinary rebuilds the signature from the
-     * parameters it receives (excluding file, api_key, resource_type and
-     * cloud_name); adding any other field here makes the rebuilt signature
-     * disagree and the upload fails with a 401 that explains nothing.
-     */
-    const form = new FormData();
-    form.append('file', file);
-    form.append('api_key', signature.apiKey);
-    form.append('timestamp', String(signature.timestamp));
-    form.append('public_id', signature.publicId);
-    form.append('overwrite', 'false');
-    form.append('signature', signature.signature);
-
-    const uploadResponse = await fetch(signature.uploadUrl, {
-      method: 'POST',
-      body: form,
-    });
-
-    const result: CloudinaryUploadResponse = await uploadResponse
-      .json()
-      .catch(() => ({}));
-
-    if (!uploadResponse.ok || !result.public_id) {
-      throw new Error(result.error?.message ?? 'Cloudinary rejected the file.');
-    }
-
-    return result.public_id;
-  }
-
   async function handleFiles(files: FileList | null, target: 'cover' | 'gallery') {
     if (!files || files.length === 0) return;
 
@@ -155,28 +96,12 @@ export default function GalleryUploader({
     for (const file of Array.from(files)) {
       const id = newRowKey('upload');
 
-      if (!ACCEPTED.includes(file.type)) {
-        setPending((current) => [
-          ...current,
-          {
-            id,
-            filename: file.name,
-            status: 'failed',
-            error: `${file.type || 'That file type'} is not an image Cloudinary will take. Use JPEG, PNG, WebP or AVIF.`,
-          },
-        ]);
-        continue;
-      }
+      const rejection = checkFile(file);
 
-      if (file.size > MAX_BYTES) {
+      if (rejection) {
         setPending((current) => [
           ...current,
-          {
-            id,
-            filename: file.name,
-            status: 'failed',
-            error: `${(file.size / 1024 / 1024).toFixed(1)} MB is over the 10 MB limit. Resize it first.`,
-          },
+          { id, filename: file.name, status: 'failed', error: rejection },
         ]);
         continue;
       }
@@ -187,7 +112,7 @@ export default function GalleryUploader({
       ]);
 
       try {
-        const publicId = await uploadOne(file);
+        const publicId = await uploadImage('trips', tripId, file);
 
         // Success: drop it from the pending list and add the real row.
         setPending((current) => current.filter((item) => item.id !== id));
@@ -207,6 +132,15 @@ export default function GalleryUploader({
           ]);
         }
       } catch (error) {
+        /*
+         * A missing Cloudinary configuration is not about this file and will
+         * not be fixed by retrying, so it is surfaced once at the top of the
+         * tab rather than against every image in the batch.
+         */
+        if (error instanceof UploadNotConfiguredError) {
+          setConfigError(error.message);
+        }
+
         /*
          * The failure is recorded against this file and nothing else is
          * touched. The rest of the form — and any image that uploaded
@@ -447,7 +381,7 @@ function UploadButton({
         ref={ref}
         type="file"
         multiple={multiple}
-        accept={ACCEPTED.join(',')}
+        accept={ACCEPTED_IMAGE_TYPES.join(',')}
         aria-label={label}
         onChange={(event) => onFiles(event.target.files)}
         className="sr-only"
@@ -459,19 +393,15 @@ function UploadButton({
 /**
  * A preview of a stored Cloudinary image.
  *
- * The URL is assembled here rather than through `next-cloudinary`, because that
- * package is what `types/dto.ts` warns against value-importing into a Client
- * Component. A plain `img` on a delivery URL needs no SDK: `f_auto,q_auto` lets
- * Cloudinary pick the format and quality, and `c_fill` crops to the box.
- *
- * `NEXT_PUBLIC_` is correct for the cloud name — it is in every delivery URL on
- * the public site already, so it is not a secret and never was.
+ * The URL comes from `../upload`, which builds it by hand rather than through
+ * `next-cloudinary` — that package is what `types/dto.ts` warns against
+ * value-importing into a Client Component.
  */
 function Thumb({ publicId, small }: { publicId: string; small?: boolean }) {
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const size = small ? 'w-28 h-20' : 'w-44 h-32';
+  const url = previewUrl(publicId, small ? 224 : 352);
 
-  if (!publicId || !cloudName) {
+  if (!url) {
     return (
       <div
         className={`${size} flex shrink-0 items-center justify-center rounded border border-dashed border-hairline bg-paper text-xs text-muted`}
@@ -480,10 +410,6 @@ function Thumb({ publicId, small }: { publicId: string; small?: boolean }) {
       </div>
     );
   }
-
-  const url = `https://res.cloudinary.com/${cloudName}/image/upload/c_fill,g_auto,f_auto,q_auto,w_${
-    small ? 224 : 352
-  }/${publicId}`;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element

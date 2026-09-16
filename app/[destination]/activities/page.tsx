@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { redirectOrNotFound } from '../../../lib/redirects';
 
 import Header from '../../../components/layout/Header';
 import Footer from '../../../components/layout/Footer';
@@ -21,6 +22,7 @@ import type { IDestination } from '../../../models/Destination';
 import { connectDB } from '../../../lib/db';
 import { activityPath, activitiesListingPath } from '../../../lib/urls';
 import { toActivityComparisonRows } from '../../../types/dto';
+import { jsonLdScript } from '../../../lib/jsonLd';
 
 const SITE_URL = 'https://treknclimb.com';
 
@@ -104,12 +106,17 @@ export default async function ActivitiesPage({ params }: { params: Params }) {
   const { destination: slug } = await params;
   const destination = await getDestinationBySlug(slug);
 
-  if (!destination) notFound();
+  if (!destination) return redirectOrNotFound(`/${slug}/activities`);
 
   /*
    * The Nepal asymmetry, enforced rather than assumed. This page is meaningless
    * for a destination with no activity layer, and rendering an empty grid at
    * /india/activities would be an indexable page saying nothing.
+   */
+  /*
+   * A destination with no activity layer has no activities page. Not a
+   * redirect candidate — the path is structurally wrong rather than moved —
+   * so this stays a plain 404.
    */
   if (!destination.hasActivities) notFound();
 
@@ -385,7 +392,7 @@ export default async function ActivitiesPage({ params }: { params: Params }) {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(itemListJsonLd) }}
       />
     </>
   );

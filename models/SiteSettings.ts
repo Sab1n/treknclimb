@@ -29,6 +29,43 @@ export interface IValueProposition {
   displayOrder: number;
 }
 
+/**
+ * One line of the About page’s commitments list.
+ *
+ * Separate from `valuePropositions`, which is homepage conversion copy — a
+ * reason to choose this operator, written to persuade. A commitment is a
+ * statement of practice, and half of them are things the company **will not**
+ * do. Rendering the two from one array would mean the homepage either leaks
+ * the refusals or has to filter by a field it does not care about.
+ *
+ * `kind` carries the half rather than two arrays, because the pair reads as a
+ * contrast and the page lays them out side by side. A single array also keeps
+ * `displayOrder` meaningful across both columns.
+ */
+export interface ICommitment {
+  _id?: Types.ObjectId;
+  title: string;
+  body: string;
+  /** `will` — something the company does. `wont` — something it refuses. */
+  kind: 'will' | 'wont';
+  displayOrder: number;
+}
+
+/**
+ * One block of the safety and responsibility section.
+ *
+ * v1 names three: insurance and evacuation, guide certification, porter
+ * welfare. Stored as a repeatable block rather than three fixed fields so the
+ * client can add a fourth without a schema change — the list is a claim about
+ * practice, and practice grows.
+ */
+export interface ISafetyPolicy {
+  _id?: Types.ObjectId;
+  title: string;
+  body: string;
+  displayOrder: number;
+}
+
 export interface ISocialLink {
   _id?: Types.ObjectId;
   /** Facebook, Instagram, TripAdvisor, YouTube — feeds Organization `sameAs`. */
@@ -64,6 +101,10 @@ export interface ISiteSettings {
 
   /** The canonical company descriptions, reused verbatim off-site. */
   shortDescription?: string;
+  /**
+   * The company story, in full. Rendered on the About page through the
+   * Markdown-subset parser, so blank lines are paragraph breaks.
+   */
   longDescription?: string;
 
   // --- conversion copy ---
@@ -86,6 +127,10 @@ export interface ISiteSettings {
   // --- repeating blocks ---
   headlineStats: IHeadlineStat[];
   valuePropositions: IValueProposition[];
+  /** About page — what the company will and will not do. */
+  commitments: ICommitment[];
+  /** About page — insurance, guide certification, porter welfare. */
+  safetyPolicies: ISafetyPolicy[];
   socialLinks: ISocialLink[];
 
   createdAt: Date;
@@ -99,6 +144,19 @@ const HeadlineStatSchema = new Schema<IHeadlineStat>({
 });
 
 const ValuePropositionSchema = new Schema<IValueProposition>({
+  title: { type: String, required: true, trim: true },
+  body: { type: String, required: true },
+  displayOrder: { type: Number, default: 0 },
+});
+
+const CommitmentSchema = new Schema<ICommitment>({
+  title: { type: String, required: true, trim: true },
+  body: { type: String, required: true },
+  kind: { type: String, required: true, enum: ['will', 'wont'], default: 'will' },
+  displayOrder: { type: Number, default: 0 },
+});
+
+const SafetyPolicySchema = new Schema<ISafetyPolicy>({
   title: { type: String, required: true, trim: true },
   body: { type: String, required: true },
   displayOrder: { type: Number, default: 0 },
@@ -159,6 +217,8 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
 
     headlineStats: { type: [HeadlineStatSchema], default: [] },
     valuePropositions: { type: [ValuePropositionSchema], default: [] },
+    commitments: { type: [CommitmentSchema], default: [] },
+    safetyPolicies: { type: [SafetyPolicySchema], default: [] },
     socialLinks: { type: [SocialLinkSchema], default: [] },
   },
   { timestamps: true }

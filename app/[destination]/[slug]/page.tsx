@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { redirectOrNotFound } from '../../../lib/redirects';
 import type { Metadata } from 'next';
 
 import TripDetail from '../../../components/content/TripDetail';
@@ -102,8 +102,11 @@ export default async function DestinationChildPage({
 }) {
   const { destination: destinationSlug, slug } = await params;
 
+  const path = `/${destinationSlug}/${slug}`;
+
   const destination = await getDestinationBySlug(destinationSlug);
-  if (!destination) notFound();
+  // Either 301s to wherever this path moved, or 404s. Never returns.
+  if (!destination) return redirectOrNotFound(path);
 
   /* ---------------- activity branch (Nepal) ---------------- */
   if (destination.hasActivities) {
@@ -112,7 +115,7 @@ export default async function DestinationChildPage({
     // The activity has to actually belong to this destination, or
     // /india/trekking would render Nepal's trekking page.
     if (!activity || activity.destination.slug !== destinationSlug) {
-      notFound();
+      return redirectOrNotFound(path);
     }
 
     const trips = await getTripsByActivity(activity._id);
@@ -125,8 +128,14 @@ export default async function DestinationChildPage({
 
   // A trip with an activity has its canonical home one level deeper, so it must
   // not also answer here.
+  /*
+   * A renamed trip reaches the redirect here. The mismatch cases — wrong
+   * destination, or a Nepal trip asking to be served one level up — are checked
+   * the same way: a `Redirects` row may legitimately point at the canonical
+   * URL, and if none exists this 404s exactly as before.
+   */
   if (!trip || trip.destination.slug !== destinationSlug || trip.activity) {
-    notFound();
+    return redirectOrNotFound(path);
   }
 
   const related = await getRelatedTrips(trip);

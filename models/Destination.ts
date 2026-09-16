@@ -1,14 +1,20 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
 import { ISeoFields, seoFields } from './shared/seo';
 import { reservedSlugValidator } from './shared/reservedSlugs';
+import {
+  PERMIT_COMPLEXITIES,
+  type PermitComplexity,
+} from './shared/permitComplexity';
 
-/**
- * How much permit paperwork a region involves. Editorial, set by the admin —
- * nothing in the trip data implies it.
+/*
+ * The permit-complexity vocabulary lives in `shared/permitComplexity.ts` and is
+ * re-exported here so every existing `from './Destination'` import keeps
+ * working. It moved because the destination editor's select is a Client
+ * Component, and importing it from this file would drag Mongoose — and through
+ * it the MongoDB driver's `net` and `tls` requires — into the browser bundle.
  */
-export const PERMIT_COMPLEXITIES = ['Low', 'Medium', 'High'] as const;
-
-export type PermitComplexity = (typeof PERMIT_COMPLEXITIES)[number];
+export { PERMIT_COMPLEXITIES } from './shared/permitComplexity';
+export type { PermitComplexity } from './shared/permitComplexity';
 
 /**
  * One of four fixed destinations: Nepal, India, Tibet, Bhutan. Seeded once and

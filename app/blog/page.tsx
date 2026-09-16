@@ -14,6 +14,7 @@ import {
   getPostCountsByCategory,
 } from '../../lib/queries/blog';
 import { blogPostPath } from '../../lib/urls';
+import { jsonLdScript } from '../../lib/jsonLd';
 
 const SITE_URL = 'https://treknclimb.com';
 
@@ -128,7 +129,7 @@ export default async function BlogIndexPage() {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(itemListJsonLd) }}
       />
     </>
   );

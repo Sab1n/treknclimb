@@ -1,4 +1,5 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
+import { REDIRECT_TYPES, type RedirectType } from './shared/redirectTypes';
 
 /**
  * The database-backed half of the redirect strategy. Static 301s from the
@@ -11,8 +12,15 @@ import mongoose, { Schema, Model, Types } from 'mongoose';
  * found in the two weeks after cutover.
  */
 
-export const REDIRECT_TYPES = [301, 302, 307, 308] as const;
-export type RedirectType = (typeof REDIRECT_TYPES)[number];
+/*
+ * The status vocabulary lives in `shared/redirectTypes.ts` and is re-exported
+ * here so every existing `from './Redirect'` import keeps working. It moved
+ * because the redirects admin's select is a Client Component, and importing it
+ * from this file would drag Mongoose — and through it the MongoDB driver's
+ * `net` and `tls` requires — into the browser bundle.
+ */
+export { REDIRECT_TYPES } from './shared/redirectTypes';
+export type { RedirectType } from './shared/redirectTypes';
 
 export interface IRedirect {
   _id: Types.ObjectId;

@@ -21,7 +21,7 @@ import { getPublishedTestimonials } from '../lib/queries/testimonials';
 import { getPublishedPosts } from '../lib/queries/blog';
 import { getSiteSettings } from '../lib/queries/settings';
 import { getAffiliations } from '../lib/queries/affiliations';
-import { organizationJsonLd, websiteJsonLd, SITE_URL } from '../lib/jsonLd';
+import { organizationJsonLd, websiteJsonLd, SITE_URL, jsonLdScript } from '../lib/jsonLd';
 
 export const revalidate = 3600;
 
@@ -466,7 +466,7 @@ export default async function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(
+          __html: jsonLdScript(
             organizationJsonLd(
               settings,
               affiliations,
@@ -478,7 +478,7 @@ export default async function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(websiteJsonLd(settings)),
+          __html: jsonLdScript(websiteJsonLd(settings)),
         }}
       />
     </>

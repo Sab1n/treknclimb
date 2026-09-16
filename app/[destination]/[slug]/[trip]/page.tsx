@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { redirectOrNotFound } from '../../../../lib/redirects';
 import type { Metadata } from 'next';
 
 import TripDetail from '../../../../components/content/TripDetail';
@@ -51,6 +51,8 @@ export default async function NepalTripPage({ params }: { params: Params }) {
   const { destination, slug, trip: tripSlug } = await params;
   const trip = await getTripBySlugCached(tripSlug);
 
+  const path = `/${destination}/${slug}/${tripSlug}`;
+
   // The URL has to match the trip's real place in the hierarchy, or the same
   // document would be reachable at several addresses and split its own ranking.
   if (
@@ -59,7 +61,8 @@ export default async function NepalTripPage({ params }: { params: Params }) {
     !trip.activity ||
     trip.activity.slug !== slug
   ) {
-    notFound();
+    // Either 301s to wherever this trip moved, or 404s. Never returns.
+    return redirectOrNotFound(path);
   }
 
   const related = await getRelatedTrips(trip);

@@ -11,6 +11,7 @@ import { IActivityPopulated } from '../../models/Activity';
 import { ITripPopulated } from '../../models/Trip';
 import { tripPath, filteredTripsPath } from '../../lib/urls';
 import { DIFFICULTY_GRADES, GRADE_ORDER } from '../../lib/difficultyGrades';
+import { jsonLdScript } from '../../lib/jsonLd';
 
 const SITE_URL = 'https://treknclimb.com';
 
@@ -304,7 +305,7 @@ export default function ActivityDetail({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(itemListJsonLd) }}
       />
     </>
   );

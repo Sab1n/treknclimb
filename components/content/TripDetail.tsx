@@ -11,6 +11,7 @@ import ElevationProfile from './ElevationProfile';
 import { ITripPopulated } from '../../models/Trip';
 import { tripPath } from '../../lib/urls';
 import { toGalleryImages, toElevationPoints } from '../../types/dto';
+import { jsonLdScript } from '../../lib/jsonLd';
 
 const SITE_URL = 'https://treknclimb.com';
 
@@ -501,12 +502,12 @@ export default function TripDetail({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(tripJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(tripJsonLd) }}
       />
       {faqJsonLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(faqJsonLd) }}
         />
       )}
     </>

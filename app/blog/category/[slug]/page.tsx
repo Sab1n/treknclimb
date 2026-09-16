@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { redirectOrNotFound } from '../../../../lib/redirects';
 
 import Header from '../../../../components/layout/Header';
 import Footer from '../../../../components/layout/Footer';
@@ -16,6 +16,7 @@ import {
   getPostCountsByCategory,
 } from '../../../../lib/queries/blog';
 import { blogCategoryPath, blogPostPath } from '../../../../lib/urls';
+import { jsonLdScript } from '../../../../lib/jsonLd';
 
 const SITE_URL = 'https://treknclimb.com';
 
@@ -70,7 +71,7 @@ export default async function BlogCategoryPage({
   const { slug } = await params;
   const category = await getBlogCategoryBySlug(slug);
 
-  if (!category) notFound();
+  if (!category) return redirectOrNotFound(`/blog/category/${slug}`);
 
   const [posts, categories, counts] = await Promise.all([
     getPublishedPosts({ categoryId: category._id }),
@@ -145,7 +146,7 @@ export default async function BlogCategoryPage({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(itemListJsonLd) }}
       />
     </>
   );

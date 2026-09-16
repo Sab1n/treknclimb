@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { redirectOrNotFound } from '../../../lib/redirects';
 
 import Header from '../../../components/layout/Header';
 import Footer from '../../../components/layout/Footer';
@@ -20,6 +20,7 @@ import {
   getPublishedPostSlugs,
 } from '../../../lib/queries/blog';
 import { blogCategoryPath, blogPostPath } from '../../../lib/urls';
+import { jsonLdScript } from '../../../lib/jsonLd';
 
 const SITE_URL = 'https://treknclimb.com';
 
@@ -85,7 +86,8 @@ export default async function BlogPostPage({
 
   // Covers an unknown slug, a draft, an archived post, and one published
   // without a date — the query filters all four the same way.
-  if (!post) notFound();
+  // A renamed post 301s here, via its slugHistory redirect.
+  if (!post) return redirectOrNotFound(`/blog/${slug}`);
 
   const relatedPosts = await getRelatedPosts(post, 3);
 
@@ -340,7 +342,7 @@ export default async function BlogPostPage({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogPostingJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(blogPostingJsonLd) }}
       />
     </>
   );

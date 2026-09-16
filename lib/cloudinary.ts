@@ -26,8 +26,12 @@ import { randomBytes } from 'crypto';
  * This is the part that is easy to get wrong. If the browser sends the public
  * ID and the server signs whatever it is handed, an admin — or anything with an
  * admin session — can sign an upload to `treknclimb/destinations/nepal` and
- * overwrite the Nepal hero image. The ID is built here, from the trip, and the
- * caller supplies only which trip it is for.
+ * overwrite the Nepal hero image. The ID is built here, from the record being
+ * edited, and the caller supplies only which collection and which record.
+ *
+ * The collection is checked against a closed list for the same reason: it
+ * becomes part of the path, so a free string would let one collection's editor
+ * write into another's folder.
  */
 
 /** Every asset lives under this prefix. Never Cloudinary's default filename. */
@@ -59,29 +63,59 @@ export function cloudinaryConfig(): CloudinaryConfig | null {
 }
 
 /**
- * Builds the public ID for a trip image.
+ * Which collections may receive uploads, and the folder each one uses.
  *
- * `treknclimb/trips/<slug>/<random>`. The prefix is required by CLAUDE.md
- * because Cloudinary's default is the uploaded filename, and two collections
- * both holding something called `nepal` would silently overwrite each other.
+ * A closed list, not a free string. The folder becomes part of the public ID,
+ * so accepting whatever the caller sends would let an admin session write into
+ * any folder in the account — including one holding another collection's
+ * images. Adding a collection here is deliberate; passing an unknown one is a
+ * rejected request.
+ */
+export const UPLOAD_COLLECTIONS = [
+  'trips',
+  'activities',
+  'destinations',
+  'testimonials',
+] as const;
+
+export type UploadCollection = (typeof UPLOAD_COLLECTIONS)[number];
+
+export function isUploadCollection(value: string): value is UploadCollection {
+  return (UPLOAD_COLLECTIONS as readonly string[]).includes(value);
+}
+
+/**
+ * Builds the public ID for an image.
+ *
+ * `treknclimb/<collection>/<segment>/<random>`. The prefix is required by
+ * CLAUDE.md because Cloudinary's default is the uploaded filename, and two
+ * collections both holding something called `nepal` would silently overwrite
+ * each other.
+ *
+ * `segment` is the record's slug where it has one and its id where it does not
+ * — testimonials have no slug, and a person's name is neither unique nor
+ * stable enough to file images under.
  *
  * The random suffix rather than the filename: two photos called `IMG_2041.jpg`
  * from the same camera would otherwise collide, and Cloudinary's default
  * behaviour on a collision is to replace. Eight bytes of hex is short enough to
  * read in a URL and long enough that a collision is not a thing that happens.
  *
- * The slug is sanitised even though it comes from our own database — it reaches
- * a URL path, and a slug is admin-editable, so treating it as trusted is a
- * habit rather than a fact.
+ * The segment is sanitised even though it comes from our own database — it
+ * reaches a URL path, and a slug is admin-editable, so treating it as trusted
+ * is a habit rather than a fact.
  */
-export function tripImagePublicId(tripSlug: string): string {
-  const safeSlug = tripSlug
+export function imagePublicId(
+  collection: UploadCollection,
+  segment: string
+): string {
+  const safeSegment = segment
     .toLowerCase()
     .replace(/[^a-z0-9-]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
-  return `${ROOT_FOLDER}/trips/${safeSlug}/${randomBytes(8).toString('hex')}`;
+  return `${ROOT_FOLDER}/${collection}/${safeSegment}/${randomBytes(8).toString('hex')}`;
 }
 
 export interface UploadSignature {
@@ -109,12 +143,15 @@ export interface UploadSignature {
  * should be impossible; setting it false means that if the assumption is ever
  * wrong, the upload fails loudly rather than replacing an image silently.
  */
-export function signUpload(tripSlug: string): UploadSignature | null {
+export function signUpload(
+  collection: UploadCollection,
+  segment: string
+): UploadSignature | null {
   const config = cloudinaryConfig();
 
   if (!config) return null;
 
-  const publicId = tripImagePublicId(tripSlug);
+  const publicId = imagePublicId(collection, segment);
   // Cloudinary expects seconds, and rejects a timestamp more than an hour from
   // its own clock — so this is genuinely short-lived, not a token to cache.
   const timestamp = Math.round(Date.now() / 1000);
@@ -153,6 +190,6 @@ export function signUpload(tripSlug: string): UploadSignature | null {
  * every image still exists on every save would be a network call per image on
  * the site's slowest write.
  */
-export function isTripPublicId(value: string): boolean {
+export function isOwnPublicId(value: string): boolean {
   return /^treknclimb\/[a-z0-9-]+\/[a-z0-9-]+(\/[a-z0-9-]+)*$/.test(value);
 }

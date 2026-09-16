@@ -18,6 +18,7 @@ import { getAllPublishedTrips } from '../../lib/queries/trips';
 import { toTripFilterMeta } from '../../types/dto';
 import { tripPath } from '../../lib/urls';
 import { TRIP_DIFFICULTIES } from '../../models/Trip';
+import { jsonLdScript } from '../../lib/jsonLd';
 
 const SITE_URL = 'https://treknclimb.com';
 
@@ -245,7 +246,7 @@ export default async function TripsPage() {
       {/* Unfiltered view only — the filtered views are this same document. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(itemListJsonLd) }}
       />
     </>
   );

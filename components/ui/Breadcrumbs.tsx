@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { jsonLdScript } from '../../lib/jsonLd';
 
 export interface Crumb {
   label: string;
@@ -59,7 +60,7 @@ export default function Breadcrumbs({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(jsonLd) }}
       />
     </>
   );

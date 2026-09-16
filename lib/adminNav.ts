@@ -42,12 +42,12 @@ export const ADMIN_NAV: AdminNavSection[] = [
     title: 'Content',
     items: [
       { label: 'Trips', href: '/admin/trips' },
-      { label: 'Activities' },
-      { label: 'Destinations' },
+      { label: 'Activities', href: '/admin/activities' },
+      { label: 'Destinations', href: '/admin/destinations' },
       { label: 'Blog' },
       { label: 'Categories' },
-      { label: 'Testimonials' },
-      { label: 'FAQs' },
+      { label: 'Testimonials', href: '/admin/testimonials' },
+      { label: 'FAQs', href: '/admin/faqs' },
       { label: 'Media' },
     ],
   },
@@ -56,7 +56,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
     items: [
       { label: 'Newsletter', href: '/admin/newsletter' },
       { label: 'Exchange rates' },
-      { label: 'Redirects' },
+      { label: 'Redirects', href: '/admin/redirects' },
       { label: 'Settings' },
     ],
   },
@@ -74,6 +74,11 @@ const SEGMENT_LABELS: Record<string, string> = {
   admin: 'Admin',
   inquiries: 'Booking inquiries',
   trips: 'Trips',
+  activities: 'Activities',
+  destinations: 'Destinations',
+  redirects: 'Redirects',
+  testimonials: 'Testimonials',
+  faqs: 'FAQs',
   rejections: 'Rejected submissions',
   newsletter: 'Newsletter',
 };
@@ -92,6 +97,10 @@ const OBJECT_ID = /^[0-9a-f]{24}$/i;
 const RECORD_LABELS: Record<string, string> = {
   inquiries: 'Inquiry',
   trips: 'Trip',
+  activities: 'Activity',
+  destinations: 'Destination',
+  testimonials: 'Testimonial',
+  faqs: 'FAQ',
 };
 
 /**

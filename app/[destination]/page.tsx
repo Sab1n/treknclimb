@@ -1,6 +1,6 @@
-import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { redirectOrNotFound } from '../../lib/redirects';
 
 import Header from '../../components/layout/Header';
 import Footer from '../../components/layout/Footer';
@@ -9,6 +9,9 @@ import Breadcrumbs from '../../components/ui/Breadcrumbs';
 import ActivityCard from '../../components/content/ActivityCard';
 import TripCard from '../../components/content/TripCard';
 import CloudinaryImage from '../../components/ui/CloudinaryImage';
+import FaqAccordion from '../../components/content/FaqAccordion';
+import { getFaqsForDestination } from '../../lib/queries/faqs';
+import { faqPageJsonLd, jsonLdScript } from '../../lib/jsonLd';
 
 import {
   getDestinationBySlug,
@@ -94,17 +97,29 @@ export default async function DestinationPage({
   const { destination: slug } = await params;
   const destination = await getDestinationBySlug(slug);
 
-  if (!destination) notFound();
+  // Either 301s to wherever this path moved, or 404s. Never returns.
+  if (!destination) return redirectOrNotFound(`/${slug}`);
 
   // The asymmetry, resolved once. Activities are only fetched for a
   // destination that has the layer; the other three skip the query entirely.
-  const [activities, trips, tripCount] = await Promise.all([
+  const [activities, trips, tripCount, faqs] = await Promise.all([
     destination.hasActivities
       ? getActivitiesForDestination(destination._id)
       : Promise.resolve([]),
     getTripsByDestination(destination.slug, { limit: TRIP_SHORTLIST_SIZE }),
     getPublishedTripCount(destination._id),
+    getFaqsForDestination(String(destination._id)),
   ]);
+
+  /*
+   * Null when there are no entries, which is also what hides the section — one
+   * condition for the markup and the markup's subject, so a `FAQPage` node can
+   * never describe a section that is not on the page.
+   */
+  const faqJsonLd = faqPageJsonLd(
+    faqs.map((faq) => ({ question: faq.question, answer: faq.answer })),
+    `${SITE_URL}/${destination.slug}`
+  );
 
   const itemListJsonLd = {
     '@context': 'https://schema.org',
@@ -278,6 +293,46 @@ export default async function DestinationPage({
           </div>
         </section>
 
+        {/*
+          Destination FAQs, below the trips and above the closing CTA.
+
+          Placed here because the questions are about travelling to this
+          country — permits, visas, altitude, seasons — and they are what a
+          reader reaches for after seeing the routes and before deciding to
+          ask. Putting them above the trips would answer questions nobody had
+          yet; putting them after the CTA would hide them.
+
+          Only entries associated with this destination. A trip's own questions
+          live on the trip page, from the embedded array — see the note in
+          `lib/queries/faqs.ts`.
+        */}
+        {faqs.length > 0 && (
+          <section className="border-b border-hairline">
+            <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+              <div className="max-w-3xl">
+                <h2 className="font-display text-2xl font-extrabold tracking-display sm:text-3xl">
+                  Travelling in {destination.name}
+                </h2>
+                <p className="mt-2 max-w-prose text-muted">
+                  Permits, seasons and the practical questions that come up
+                  before a route is chosen.{' '}
+                  <Link
+                    href="/faq"
+                    className="font-semibold underline underline-offset-4 hover:text-ink"
+                  >
+                    General questions are answered here
+                  </Link>
+                  .
+                </p>
+
+                <div className="mt-6">
+                  <FaqAccordion entries={faqs} idPrefix="destination-faq" />
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {/* Closing CTA — the page's one marigold button */}
         <section className="bg-ink text-paper">
           <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
@@ -317,8 +372,15 @@ export default async function DestinationPage({
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(itemListJsonLd) }}
       />
+
+      {faqJsonLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdScript(faqJsonLd) }}
+        />
+      )}
     </>
   );
 }

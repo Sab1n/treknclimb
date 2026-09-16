@@ -135,3 +135,75 @@ export function websiteJsonLd(
     publisher: { '@id': `${SITE_URL}/#organization` },
   };
 }
+
+/**
+ * `FAQPage` for a list of questions and answers.
+ *
+ * Emitted by `/faq`, by a destination page that has entries, and — through its
+ * own inline copy — by the trip page. This builder exists so the first two
+ * share one shape; the trip page predates it and builds the same structure from
+ * its embedded array.
+ *
+ * Returns null for an empty list rather than a `FAQPage` with no
+ * `mainEntity`, which is invalid markup and reads to a validator as a broken
+ * page rather than a page without FAQs.
+ *
+ * **One `FAQPage` node per page.** Google's guidance is that the markup
+ * describes the page, so a destination page emitting one node for its FAQ
+ * section is correct and emitting two would not be.
+ */
+export function faqPageJsonLd(
+  entries: { question: string; answer: string }[],
+  /** Canonical URL of the page the markup describes. */
+  pageUrl: string
+): Record<string, unknown> | null {
+  if (entries.length === 0) return null;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    '@id': `${pageUrl}#faq`,
+    mainEntity: entries.map((entry) => ({
+      '@type': 'Question',
+      name: entry.question,
+      acceptedAnswer: { '@type': 'Answer', text: entry.answer },
+    })),
+  };
+}
+
+/**
+ * Serialises structured data for a `<script type="application/ld+json">`.
+ *
+ * ## Why this is not plain `JSON.stringify`
+ *
+ * An HTML parser looks for the literal characters `</script` inside a script
+ * element and ends the element there, before any JSON parsing happens. So an
+ * FAQ answer containing `</script>` — or the string `<!--` — closes the tag
+ * early and drops the rest of the JSON into the document as markup. The
+ * content here is admin-authored free text, which is exactly the kind that
+ * eventually contains an angle bracket.
+ *
+ * Escaping `<` as `\u003c` is the standard fix and is invisible to a JSON
+ * parser: `"\u003c/script>"` is the same string to a consumer and is inert to
+ * the HTML parser. `>` and `&` are escaped too, which costs nothing and closes
+ * the `]]>` and entity cases as well.
+ *
+ * This is the one place `dangerouslySetInnerHTML` is used deliberately, and it
+ * is not the case CLAUDE.md forbids. That rule is about *post bodies* — visitor-
+ * facing prose, which goes through the Markdown parser instead. Here the input
+ * is an object we built, serialised by `JSON.stringify`, so the output is
+ * always valid JSON and never arbitrary markup.
+ */
+/*
+ * String.raw below, not a quoted escape. The replacement must be the six
+ * characters \u003c, a JSON escape sequence. A quoted '\u003c' in source is
+ * the single character <, which makes the replace a no-op that reads exactly
+ * like a working escape. That is what shipped here first time, and it was
+ * caught by asserting on the output rather than by reading the code.
+ */
+export function jsonLdScript(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, String.raw`\u003c`)
+    .replace(/>/g, String.raw`\u003e`)
+    .replace(/&/g, String.raw`\u0026`);
+}

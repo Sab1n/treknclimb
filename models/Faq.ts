@@ -1,14 +1,22 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
-import { ITrip } from './Trip';
 import { IDestination } from './Destination';
 import { PublishStatus, PUBLISH_STATUSES } from './shared/status';
 
 /**
- * FAQs shown on the general /faq page and, where associated, inline on a trip
- * or destination page. Both render with FAQPage JSON-LD.
+ * FAQs shown on the general /faq page and, where associated, on a destination
+ * page. Both render with FAQPage JSON-LD.
  *
- * `trip` and `destination` are independent nullable associations: an entry can
- * be general (both null), trip-specific, or destination-specific.
+ * **There is no trip association, deliberately.** A trip's own questions live
+ * in `Trip.faqs`, the embedded array, which is what the trip page renders and
+ * what the trip editor writes. CLAUDE.md settles that trip FAQs are embedded
+ * rather than a separate collection, and a single `trip` ref here could not
+ * express 'this answer applies to these five trips' anyway — so it bought no
+ * reuse over the embedded array while costing two sources for one section of
+ * one page. Removed rather than left unread.
+ *
+ * `destination` stays nullable rather than optional: the key is always present
+ * and null is a real value meaning 'this is a general answer', not missing
+ * data. Same reasoning as `Trip.activity`.
  */
 export interface IFaq {
   _id: Types.ObjectId;
@@ -16,7 +24,6 @@ export interface IFaq {
   answer: string;
   /** Grouping on the general FAQ page — "Booking", "On the trail", "Money". */
   category?: string;
-  trip: Types.ObjectId | null;
   destination: Types.ObjectId | null;
   displayOrder: number;
   status: PublishStatus;
@@ -25,9 +32,8 @@ export interface IFaq {
   updatedAt: Date;
 }
 
-/** After `.populate('trip destination')`. */
-export interface IFaqPopulated extends Omit<IFaq, 'trip' | 'destination'> {
-  trip: ITrip | null;
+/** After `.populate('destination')`. */
+export interface IFaqPopulated extends Omit<IFaq, 'destination'> {
   destination: IDestination | null;
 }
 
@@ -36,7 +42,6 @@ const FaqSchema = new Schema<IFaq>(
     question: { type: String, required: true, trim: true },
     answer: { type: String, required: true },
     category: { type: String, trim: true },
-    trip: { type: Schema.Types.ObjectId, ref: 'Trip', default: null, index: true },
     destination: {
       type: Schema.Types.ObjectId,
       ref: 'Destination',
