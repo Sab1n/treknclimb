@@ -56,7 +56,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
     title: 'Site',
     items: [
       { label: 'Newsletter', href: '/admin/newsletter' },
-      { label: 'Exchange rates' },
+      { label: 'Exchange rates', href: '/admin/rates' },
       { label: 'Redirects', href: '/admin/redirects' },
       { label: 'Settings', href: '/admin/settings' },
     ],
@@ -83,6 +83,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   rejections: 'Rejected submissions',
   newsletter: 'Newsletter',
   team: 'Team',
+  rates: 'Exchange rates',
   settings: 'Settings',
 };
 

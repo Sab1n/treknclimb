@@ -6,7 +6,7 @@ import { requireAdmin } from '../../../../lib/adminAuth';
 import SiteSettings from '../../../../models/SiteSettings';
 import Affiliation from '../../../../models/Affiliation';
 import { adminSettingsSchema } from '../../../../lib/validators/adminSettings';
-import { settingsPaths, revalidateAll } from '../../../../lib/revalidation';
+import { revalidateSettings } from '../../../../lib/revalidation';
 
 export const dynamic = 'force-dynamic';
 
@@ -265,6 +265,6 @@ export async function PATCH(request: Request) {
     ok: true,
     updatedAt: settings.updatedAt,
     changed: [...changed],
-    revalidated: revalidateAll(settingsPaths(changed)),
+    revalidated: revalidateSettings(changed),
   });
 }

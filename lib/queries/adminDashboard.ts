@@ -89,3 +89,18 @@ export async function getStaleExchangeRates(): Promise<StaleRatesReport> {
 
   return { stale, checked: activeCount > 0 };
 }
+
+/**
+ * Epoch milliseconds before which a rate counts as stale.
+ *
+ * A plain function rather than an expression inside a component. `Date.now()`
+ * called during a component's render body is an impure call — the React
+ * Compiler's `react-hooks/purity` rule rejects it, and it is right to, even in
+ * a Server Component: a value that changes on every render cannot be memoised
+ * and cannot be reasoned about across a hydration boundary. Called from a
+ * module-scope helper it is an ordinary side effect at request time, which is
+ * what it actually is on a `force-dynamic` page.
+ */
+export function rateStaleCutoff(): number {
+  return Date.now() - RATE_STALE_AFTER_DAYS * 24 * 60 * 60 * 1000;
+}

@@ -269,6 +269,14 @@ export async function testimonialPaths(testimonial: {
  * nothing enforces that, which is why the derivation is recorded here rather
  * than left to be re-guessed.
  */
+/**
+ * The marker for 'this field is on every page'.
+ *
+ * Not a path. `settingsPaths` maps it to a layout-level purge, which is a
+ * different call — see the note there.
+ */
+export const SITEWIDE = '__sitewide__';
+
 const SETTINGS_FIELD_PAGES: Record<string, string[]> = {
   // Homepage only.
   heroHeadline: ['/'],
@@ -298,20 +306,29 @@ const SETTINGS_FIELD_PAGES: Record<string, string[]> = {
    * carried into Organization JSON-LD on `/` and `/about` — which is why the
    * homepage appears here even though it prints none of these as prose.
    */
-  legalName: ['/', '/about', '/privacy-policy', '/terms'],
-  tradingName: ['/', '/about'],
+  /*
+   * The footer renders these on every page, so a change to one is sitewide.
+   * It was not always so: the footer used to be a static link list, and wiring
+   * it to SiteSettings is what moved these from a four-path list to the whole
+   * site. The marker records that dependency explicitly rather than leaving a
+   * long enumerated list to drift.
+   */
+  legalName: [SITEWIDE],
+  tradingName: [SITEWIDE],
   shortDescription: ['/', '/about'],
   foundingYear: ['/', '/about'],
   registrationNumber: ['/', '/about'],
-  streetAddress: ['/', '/about', '/privacy-policy'],
-  addressLocality: ['/', '/about', '/privacy-policy'],
-  addressRegion: ['/', '/about', '/privacy-policy'],
-  postalCode: ['/', '/about', '/privacy-policy'],
-  addressCountry: ['/', '/about', '/privacy-policy'],
-  email: ['/', '/about', '/booking-policy', '/privacy-policy', '/terms'],
+  streetAddress: [SITEWIDE],
+  addressLocality: [SITEWIDE],
+  postalCode: [SITEWIDE],
+  addressCountry: [SITEWIDE],
+  email: [SITEWIDE],
+  phone: [SITEWIDE],
 
-  // JSON-LD only — no page prints these, both pages carry them in markup.
-  phone: ['/', '/about'],
+  // Not in the footer — only the legal pages and the JSON-LD.
+  addressRegion: ['/', '/about', '/privacy-policy'],
+
+  // JSON-LD only — no page prints this, both pages carry it in markup.
   socialLinks: ['/', '/about'],
 
   /*
@@ -332,10 +349,36 @@ const SETTINGS_FIELD_PAGES: Record<string, string[]> = {
 /**
  * The pages made stale by a settings save.
  *
- * Takes the fields that actually changed rather than purging all five every
+ * Takes the fields that actually changed rather than purging everything every
  * time. Editing the hero headline should not regenerate the privacy policy —
  * not because the cost matters at this size, but because a purge list that is
  * always the same tells whoever reads the response nothing about what happened.
+ *
+ * ## Why NAP is a layout purge and not a list of paths
+ *
+ * The footer renders the company name, address, phone and email, and the footer
+ * is on every public page. So those fields genuinely do invalidate the whole
+ * site, and there are two ways to say so:
+ *
+ * 1. **Enumerate every path** — every trip, activity, destination, blog post
+ *    and category, plus the static pages. That means four collection scans on
+ *    every settings save, a list that grows with the catalogue, and a new page
+ *    type silently missing from it the day someone adds one.
+ * 2. **A layout-level purge** — one call that invalidates the root layout and
+ *    every route nested under it.
+ *
+ * The second, and it is not the blunt instrument it looks like. A blunt purge
+ * regenerates pages the change does not affect; here *every* page carries the
+ * footer, so every page really is stale. The enumerated list would arrive at
+ * the same set by a longer route and be wrong the first time it fell behind
+ * the routes.
+ *
+ * **The cost is real and worth stating**: it discards the whole static
+ * catalogue, so the next request for each page regenerates it. On a site of a
+ * few dozen pages, for a change that happens a handful of times in the life of
+ * the business, that is the right trade. If the catalogue reached the hundreds
+ * and the address were edited often — neither of which is true — the answer
+ * would be a tagged query behind the footer instead.
  *
  * An unknown field name contributes nothing and is not an error: the caller
  * diffs whole objects, so it can legitimately see a key this table does not
@@ -347,6 +390,109 @@ export function settingsPaths(changedFields: Iterable<string>): string[] {
 
   for (const field of changedFields) {
     for (const path of SETTINGS_FIELD_PAGES[field] ?? []) paths.add(path);
+  }
+
+  return [...paths];
+}
+
+/**
+ * Purges what a settings change made stale, layout-wide where the footer is
+ * involved.
+ *
+ * Separate from `revalidateAll` because the sitewide case is a different call
+ * — the 'layout' variant rather than the default 'page' — and folding a magic
+ * string into the generic helper would hide that from every other caller.
+ *
+ * Returns what a person should be told rather than the raw list: the admin
+ * screen shows this back, and "every page" is the honest description of a
+ * root-layout purge.
+ */
+export function revalidateSettings(changedFields: Iterable<string>): string[] {
+  const targets = settingsPaths(changedFields);
+
+  if (targets.includes(SITEWIDE)) {
+    // The root layout and every route nested under it.
+    revalidatePath('/', 'layout');
+
+    return ['every page (the footer carries this)'];
+  }
+
+  return revalidateAll(targets);
+}
+
+/**
+ * Every public page that shows a price.
+ *
+ * Prices are stored in USD and rendered into the static HTML, and the currency
+ * switcher converts them **client-side from rates passed down as props** — so
+ * the rates a visitor converts with are the ones captured when the page was
+ * last generated. A rate change is therefore stale content on every page
+ * carrying a price, not just on a listing.
+ *
+ * Enumerated rather than layout-purged, unlike the footer NAP: prices appear on
+ * the trip, destination, activity and listing pages, but not on the legal
+ * pages, the blog, /about or /faq. A root-layout purge would regenerate those
+ * for nothing, and here the list is derivable in four queries rather than
+ * guessed.
+ *
+ * **Nothing renders a converted price yet.** `getActiveExchangeRates` has no
+ * caller — the currency switcher is not built — so today this purges pages that
+ * would not change. That is deliberate: the alternative is remembering to add
+ * the purge on the day the switcher lands, which is exactly the kind of thing
+ * that gets missed and produces "the CMS is broken".
+ */
+export async function pricePaths(): Promise<string[]> {
+  await connectDB();
+
+  const paths = new Set<string>(['/', '/trips', '/destinations']);
+
+  const destinations = await Destination.find()
+    .select('slug hasActivities')
+    .lean<{ slug: string; hasActivities: boolean }[]>()
+    .exec();
+
+  for (const destination of destinations) {
+    paths.add(`/${destination.slug}`);
+    if (destination.hasActivities) paths.add(`/${destination.slug}/activities`);
+  }
+
+  const activities = await Activity.find()
+    .select('slug destination')
+    .populate('destination', 'slug')
+    .lean<{ slug: string; destination: { slug: string } | null }[]>()
+    .exec();
+
+  for (const activity of activities) {
+    if (activity.destination) {
+      paths.add(`/${activity.destination.slug}/${activity.slug}`);
+    }
+  }
+
+  /*
+   * Published trips only. A draft has no cached page, so purging its path is a
+   * request to regenerate something that will 404.
+   */
+  const trips = await Trip.find({ status: 'published' })
+    .select('slug activity destination')
+    .populate('activity', 'slug')
+    .populate('destination', 'slug')
+    .lean<
+      {
+        slug: string;
+        activity: { slug: string } | null;
+        destination: { slug: string } | null;
+      }[]
+    >()
+    .exec();
+
+  for (const trip of trips) {
+    if (!trip.destination) continue;
+
+    paths.add(
+      trip.activity
+        ? `/${trip.destination.slug}/${trip.activity.slug}/${trip.slug}`
+        : `/${trip.destination.slug}/${trip.slug}`
+    );
   }
 
   return [...paths];

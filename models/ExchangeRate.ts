@@ -6,17 +6,20 @@ import mongoose, { Schema, Model, Types } from 'mongoose';
  * data and the sitemap always emit USD regardless of what is in here.
  */
 
-export const RATE_SOURCES = ['api', 'manual'] as const;
-export type RateSource = (typeof RATE_SOURCES)[number];
+/*
+ * Re-exported from shared/, not declared here. The admin rate table is a
+ * Client Component and needs both vocabularies; importing this module into it
+ * would pull Mongoose into the browser bundle. One definition, two sides.
+ */
+export {
+  RATE_SOURCES,
+  ROUNDING_RULES,
+  type RateSource,
+  type RoundingRule,
+} from './shared/rateVocab';
 
-export const ROUNDING_RULES = [
-  'none',
-  'nearest-1',
-  'nearest-5',
-  'nearest-10',
-  'nearest-100',
-] as const;
-export type RoundingRule = (typeof ROUNDING_RULES)[number];
+import type { RateSource, RoundingRule } from './shared/rateVocab';
+import { RATE_SOURCES, ROUNDING_RULES } from './shared/rateVocab';
 
 export interface IExchangeRate {
   _id: Types.ObjectId;

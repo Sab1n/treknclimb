@@ -1,41 +1,52 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import {
+  parseBlocks,
+  type InlineNode,
+} from '../../lib/markdownSubset';
+
 /**
- * Renders `BlogPost.body`.
+ * Renders `BlogPost.body`, `Destination.activitiesIntro` and the company story.
  *
  * ## Why this is not `dangerouslySetInnerHTML`
  *
  * The obvious implementation is one line, and it is the stored-XSS hole
- * CLAUDE.md names under Security. `body` is admin-authored rich text,
- * sanitisation on save is listed as still-to-build, and this page is public
- * and statically generated — so injected markup would be baked into the HTML
- * and served to every visitor. "Only staff can edit it" is not a defence:
- * that is precisely the account worth stealing, and the admin login is not
- * built yet either.
+ * CLAUDE.md names under Security. These bodies are admin-authored rich text on
+ * public, statically generated pages, so injected markup would be baked into
+ * the HTML and served to every visitor. "Only staff can edit it" is not a
+ * defence: that is precisely the account worth stealing.
  *
- * So this parses a **small Markdown subset into React elements**. Nothing is
+ * So this renders a **small Markdown subset as React elements**. Nothing is
  * ever handed to the browser as raw HTML, which makes the whole class of
- * injection structurally impossible rather than filtered. There is no
- * sanitiser to keep up to date and no dependency to audit.
+ * injection structurally impossible rather than filtered — no sanitiser to
+ * keep current, no dependency to audit.
+ *
+ * ## The block parsing lives in `lib/markdownSubset.ts`, not here
+ *
+ * It used to live here, and it moved when the admin rich-text editor was built.
+ * The editor has to load a stored body, let someone edit it, and write back the
+ * same subset — so it needs the same notion of "what is a block" that this
+ * component uses. Two implementations would drift, and the way they would drift
+ * is the editor quietly dropping formatting the site still displays.
+ *
+ * One parser, two consumers. `lib/markdownSubset.test.ts` asserts that every
+ * body in the database survives a round trip through it byte-for-byte.
  *
  * ## The subset
  *
- *   ## Heading            → h2
- *   ### Heading           → h3
- *   - item                → ul / li
- *   > quote               → blockquote
- *   blank-line separated  → p
- *   **bold**              → strong
- *   [text](url)           → a link, scheme-checked
- *
- * That is what the v1 prototype's post body actually uses. When a rich-text
- * editor lands in the admin, the choice is to have it emit this subset, or to
- * add a real sanitiser and swap this out — either is fine, and neither is a
- * decision this file should make on its own.
+ *     ## Heading            h2
+ *     ### Heading           h3
+ *     - item                ul / li
+ *     > quote               blockquote
+ *     blank-line separated  p
+ *     **bold**              strong
+ *     *italic*              em
+ *     ***both***            strong + em
+ *     [text](url)           a link, scheme-checked
  *
  * Anything unrecognised renders as literal text. Failing visible beats failing
- * silent: a stray `<script>` in the body shows up on the page as the characters
+ * silent: a stray `<script>` shows up on the page as the characters
  * `<script>`, which is both safe and obvious enough to get fixed.
  */
 
@@ -56,131 +67,120 @@ function isSafeHref(href: string): boolean {
   );
 }
 
-/** `**bold**` and `[text](url)`. Everything else is literal text. */
-function renderInline(text: string, keyPrefix: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  const pattern = /\*\*(.+?)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
+/** Inline nodes to React. Marks are applied outermost-first. */
+function renderInline(nodes: InlineNode[], keyPrefix: string): ReactNode[] {
+  return nodes.map((node, index) => {
+    const key = `${keyPrefix}-i${index}`;
 
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let index = 0;
-
-  while ((match = pattern.exec(text)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(text.slice(lastIndex, match.index));
+    if (node.type === 'break') {
+      /*
+       * A soft line break inside a paragraph is a space, as in Markdown. The
+       * newline is kept in storage — the editor round-trips it — but it is not
+       * a visual break.
+       */
+      return ' ';
     }
 
-    const [full, bold, linkText, href] = match;
-
-    if (bold !== undefined) {
-      nodes.push(<strong key={`${keyPrefix}-b${index}`}>{bold}</strong>);
-    } else if (linkText !== undefined && href !== undefined) {
-      if (isSafeHref(href)) {
-        // Internal links go through next/link for client-side navigation;
-        // external ones get the usual rel guard on a new tab.
-        nodes.push(
-          href.startsWith('/') || href.startsWith('#') ? (
-            <Link
-              key={`${keyPrefix}-l${index}`}
-              href={href}
-              className="font-semibold underline underline-offset-4"
-            >
-              {linkText}
-            </Link>
-          ) : (
-            <a
-              key={`${keyPrefix}-l${index}`}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold underline underline-offset-4"
-            >
-              {linkText}
-            </a>
-          )
-        );
-      } else {
-        // Rejected scheme: keep the words, drop the link. The reader still
-        // gets the sentence and nothing executes.
-        nodes.push(linkText);
+    if (node.type === 'link') {
+      if (!isSafeHref(node.href)) {
+        // Rejected scheme: keep the words, drop the link. The reader still gets
+        // the sentence and nothing executes.
+        return node.text;
       }
-    } else {
-      nodes.push(full);
+
+      // Internal links go through next/link for client-side navigation;
+      // external ones get the usual rel guard on a new tab.
+      return node.href.startsWith('/') || node.href.startsWith('#') ? (
+        <Link
+          key={key}
+          href={node.href}
+          className="font-semibold underline underline-offset-4"
+        >
+          {node.text}
+        </Link>
+      ) : (
+        <a
+          key={key}
+          href={node.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold underline underline-offset-4"
+        >
+          {node.text}
+        </a>
+      );
     }
 
-    lastIndex = match.index + full.length;
-    index += 1;
-  }
+    if (node.bold && node.italic) {
+      return (
+        <strong key={key}>
+          <em>{node.value}</em>
+        </strong>
+      );
+    }
 
-  if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+    if (node.bold) return <strong key={key}>{node.value}</strong>;
+    if (node.italic) return <em key={key}>{node.value}</em>;
 
-  return nodes;
+    return node.value;
+  });
 }
 
 export default function PostBody({ body }: { body: string }) {
-  // Blocks are separated by a blank line. Normalise Windows line endings first
-  // so a body pasted from Word does not come through as one giant paragraph.
-  const blocks = body
-    .replace(/\r\n/g, '\n')
-    .split(/\n{2,}/)
-    .map((block) => block.trim())
-    .filter(Boolean);
+  const blocks = parseBlocks(body);
 
   return (
     <div className="flex flex-col gap-5 text-base leading-relaxed">
       {blocks.map((block, blockIndex) => {
         const key = `block-${blockIndex}`;
 
-        if (block.startsWith('## ')) {
-          return (
-            <h2
-              key={key}
-              className="mt-4 font-display text-2xl font-extrabold tracking-display"
-            >
-              {renderInline(block.slice(3), key)}
-            </h2>
-          );
+        switch (block.type) {
+          case 'heading':
+            return block.level === 2 ? (
+              <h2
+                key={key}
+                className="mt-4 font-display text-2xl font-extrabold tracking-display"
+              >
+                {renderInline(block.content, key)}
+              </h2>
+            ) : (
+              <h3
+                key={key}
+                className="mt-2 font-display text-lg font-extrabold tracking-display"
+              >
+                {renderInline(block.content, key)}
+              </h3>
+            );
+
+          case 'list':
+            return (
+              <ul key={key} className="flex list-disc flex-col gap-2 pl-5">
+                {block.items.map((item, itemIndex) => (
+                  <li key={`${key}-${itemIndex}`}>
+                    {renderInline(item, `${key}-${itemIndex}`)}
+                  </li>
+                ))}
+              </ul>
+            );
+
+          case 'blockquote':
+            return (
+              <blockquote
+                key={key}
+                className="border-l-2 border-marigold pl-4 italic text-muted"
+              >
+                {block.lines.map((line, lineIndex) => (
+                  <span key={`${key}-${lineIndex}`}>
+                    {lineIndex > 0 && ' '}
+                    {renderInline(line, `${key}-${lineIndex}`)}
+                  </span>
+                ))}
+              </blockquote>
+            );
+
+          case 'paragraph':
+            return <p key={key}>{renderInline(block.content, key)}</p>;
         }
-
-        if (block.startsWith('### ')) {
-          return (
-            <h3
-              key={key}
-              className="mt-2 font-display text-lg font-extrabold tracking-display"
-            >
-              {renderInline(block.slice(4), key)}
-            </h3>
-          );
-        }
-
-        // A list is a block whose every line starts with "- ".
-        const lines = block.split('\n');
-
-        if (lines.every((line) => line.startsWith('- '))) {
-          return (
-            <ul key={key} className="flex list-disc flex-col gap-2 pl-5">
-              {lines.map((line, lineIndex) => (
-                <li key={`${key}-${lineIndex}`}>
-                  {renderInline(line.slice(2), `${key}-${lineIndex}`)}
-                </li>
-              ))}
-            </ul>
-          );
-        }
-
-        if (block.startsWith('> ')) {
-          return (
-            <blockquote
-              key={key}
-              className="border-l-2 border-marigold pl-4 italic text-muted"
-            >
-              {renderInline(block.replace(/^> ?/gm, ''), key)}
-            </blockquote>
-          );
-        }
-
-        // A soft line break inside a paragraph is a space, as in Markdown.
-        return <p key={key}>{renderInline(block.replace(/\n/g, ' '), key)}</p>;
       })}
     </div>
   );

@@ -11,6 +11,10 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
+    "@tiptap/extension-link": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.4",
     "bcryptjs": "^3.0.3",
