@@ -263,3 +263,75 @@ export const faqReorderSchema = z.object({
     .min(1, 'Nothing to reorder')
     .max(500),
 });
+
+/**
+ * The team-member editor.
+ *
+ * Same photo/alt pairing as testimonials, and the same `superRefine` for the
+ * same reason: the rule is about the **pair**, so a single field validator
+ * cannot see its neighbour, and `ctx.addIssue` with an explicit `path` is what
+ * keys the message to `photoAlt` rather than dumping it at the top of the form.
+ *
+ * The model enforces it twice over — a conditional `required` for document
+ * saves and a `pre('findOneAndUpdate')` for query middleware — and those are
+ * the guarantees. This schema is bypassed by any script; the model is not.
+ *
+ * `credentials` and `languages` arrive as arrays of strings from repeatable
+ * lists. Blank entries are dropped rather than rejected: an empty row is
+ * someone clicking "add" and changing their mind, not an error worth blocking
+ * a save over.
+ */
+const trimmedList = (max: number, maxLength: number) =>
+  z
+    .array(z.string().max(maxLength))
+    .max(max)
+    .transform((values) =>
+      values.map((value) => value.trim()).filter((value) => value !== '')
+    );
+
+export const adminTeamMemberSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Name is required').max(120),
+    role: z.string().trim().min(1, 'A role is required').max(120),
+    photo: optionalText(300),
+    photoAlt: optionalText(300),
+    bio: optionalText(3000),
+    credentials: trimmedList(20, 160),
+    languages: trimmedList(20, 80),
+    /**
+     * Years guiding. Bounded because it is a claim about a named person, and
+     * an unbounded number is a typo waiting to be published as fact.
+     */
+    yearsExperience: z
+      .string()
+      .trim()
+      .transform((value) => (value === '' ? undefined : Number(value)))
+      .refine(
+        (value) => value === undefined || Number.isInteger(value),
+        'Years of experience must be a whole number'
+      )
+      .refine(
+        (value) => value === undefined || (value >= 0 && value <= 80),
+        'Years of experience must be between 0 and 80'
+      ),
+    displayOrder: displayOrderSchema,
+    status: z
+      .string()
+      .trim()
+      .refine(
+        (value) => (PUBLISH_STATUSES as readonly string[]).includes(value),
+        'Choose draft, published or archived'
+      ),
+  })
+  .superRefine((data, ctx) => {
+    if (data.photo && !data.photoAlt) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['photoAlt'],
+        message:
+          'A photo needs alt text — what it shows, for a reader who cannot see it.',
+      });
+    }
+  });
+
+export type AdminTeamMemberInput = z.input<typeof adminTeamMemberSchema>;

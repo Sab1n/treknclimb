@@ -7,6 +7,7 @@ import Testimonial, {
   ITestimonialPopulated,
 } from '../../models/Testimonial';
 import Faq, { IFaq, IFaqPopulated } from '../../models/Faq';
+import TeamMember, { ITeamMember } from '../../models/TeamMember';
 
 /*
  * Side-effect import: `.populate('destination')` resolves the ref by model
@@ -264,6 +265,29 @@ export async function getFaqForEdit(id: string): Promise<IFaq | null> {
   try {
     return await Faq.findById(id).lean<IFaq>().exec();
   } catch {
+    return null;
+  }
+}
+
+/** Every team member, in the order the About page would show them. */
+export async function getTeamForAdmin(): Promise<ITeamMember[]> {
+  await connectDB();
+
+  return TeamMember.find()
+    .sort({ displayOrder: 1, name: 1 })
+    .lean<ITeamMember[]>()
+    .exec();
+}
+
+export async function getTeamMemberForEdit(
+  id: string
+): Promise<ITeamMember | null> {
+  await connectDB();
+
+  try {
+    return await TeamMember.findById(id).lean<ITeamMember>().exec();
+  } catch {
+    // A malformed id throws a CastError rather than returning null.
     return null;
   }
 }

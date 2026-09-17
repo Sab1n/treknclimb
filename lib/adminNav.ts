@@ -46,6 +46,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
       { label: 'Destinations', href: '/admin/destinations' },
       { label: 'Blog' },
       { label: 'Categories' },
+      { label: 'Team', href: '/admin/team' },
       { label: 'Testimonials', href: '/admin/testimonials' },
       { label: 'FAQs', href: '/admin/faqs' },
       { label: 'Media' },
@@ -57,7 +58,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
       { label: 'Newsletter', href: '/admin/newsletter' },
       { label: 'Exchange rates' },
       { label: 'Redirects', href: '/admin/redirects' },
-      { label: 'Settings' },
+      { label: 'Settings', href: '/admin/settings' },
     ],
   },
 ];
@@ -81,6 +82,8 @@ const SEGMENT_LABELS: Record<string, string> = {
   faqs: 'FAQs',
   rejections: 'Rejected submissions',
   newsletter: 'Newsletter',
+  team: 'Team',
+  settings: 'Settings',
 };
 
 /** A 24-character hex ObjectId, which is never a useful breadcrumb label. */
@@ -99,6 +102,7 @@ const RECORD_LABELS: Record<string, string> = {
   trips: 'Trip',
   activities: 'Activity',
   destinations: 'Destination',
+  team: 'Team member',
   testimonials: 'Testimonial',
   faqs: 'FAQ',
 };

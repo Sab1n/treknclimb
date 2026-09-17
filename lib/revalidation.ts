@@ -243,3 +243,111 @@ export async function testimonialPaths(testimonial: {
 
   return paths;
 }
+
+/**
+ * Which cached pages each SiteSettings field appears on.
+ *
+ * ## Derived by reading the pages, not assumed
+ *
+ * Exactly five public pages call `getSiteSettings()` — `/`, `/about`,
+ * `/booking-policy`, `/privacy-policy` and `/terms` — and this table was built
+ * by listing the fields each one actually reads. That matters because the
+ * obvious assumption is wrong in both directions:
+ *
+ * - **The footer does not read SiteSettings.** Its own comment says the NAP
+ *   belongs there, but it currently renders a static link list, so changing the
+ *   address does *not* invalidate every page on the site. A blanket
+ *   `revalidatePath('/', 'layout')` would regenerate the entire catalogue on
+ *   every settings save for no reason.
+ * - **Several fields reach pages that never name them**, through
+ *   `organizationJsonLd`. `phone` and `socialLinks` are rendered nowhere as
+ *   text, but they are in the structured data on `/` and `/about`, and a
+ *   `sameAs` that still lists a dead profile is a real problem.
+ *
+ * So the map is explicit and the JSON-LD dependency is written into it. **When
+ * a page starts or stops reading a field, this table has to change with it** —
+ * nothing enforces that, which is why the derivation is recorded here rather
+ * than left to be re-guessed.
+ */
+const SETTINGS_FIELD_PAGES: Record<string, string[]> = {
+  // Homepage only.
+  heroHeadline: ['/'],
+  heroSubheading: ['/'],
+  heroCtaLabel: ['/'],
+  riskReversalText: ['/'],
+  officeHours: ['/'],
+  valuePropositions: ['/'],
+
+  // Homepage and About.
+  contactPersonName: ['/', '/about'],
+  contactPersonRole: ['/', '/about'],
+  responseTimePromise: ['/', '/about'],
+  headlineStats: ['/', '/about'],
+
+  // About only.
+  longDescription: ['/about'],
+  commitments: ['/about'],
+  safetyPolicies: ['/about'],
+
+  // Booking policy only.
+  depositPolicyText: ['/booking-policy'],
+  cancellationPolicyText: ['/booking-policy'],
+
+  /*
+   * NAP and identity. Rendered as text on the legal pages and on About, and
+   * carried into Organization JSON-LD on `/` and `/about` — which is why the
+   * homepage appears here even though it prints none of these as prose.
+   */
+  legalName: ['/', '/about', '/privacy-policy', '/terms'],
+  tradingName: ['/', '/about'],
+  shortDescription: ['/', '/about'],
+  foundingYear: ['/', '/about'],
+  registrationNumber: ['/', '/about'],
+  streetAddress: ['/', '/about', '/privacy-policy'],
+  addressLocality: ['/', '/about', '/privacy-policy'],
+  addressRegion: ['/', '/about', '/privacy-policy'],
+  postalCode: ['/', '/about', '/privacy-policy'],
+  addressCountry: ['/', '/about', '/privacy-policy'],
+  email: ['/', '/about', '/booking-policy', '/privacy-policy', '/terms'],
+
+  // JSON-LD only — no page prints these, both pages carry them in markup.
+  phone: ['/', '/about'],
+  socialLinks: ['/', '/about'],
+
+  /*
+   * Nothing reads this. The WhatsApp link uses `NEXT_PUBLIC_WHATSAPP_NUMBER`
+   * instead. Listed with an empty array rather than omitted, so the absence is
+   * a recorded fact rather than a gap in the table.
+   */
+  whatsappNumber: [],
+
+  /*
+   * Affiliation registration numbers are not SiteSettings fields, but they are
+   * saved by the same screen and they feed `memberOf` identifiers on both
+   * pages plus the expanded list on About.
+   */
+  affiliations: ['/', '/about'],
+};
+
+/**
+ * The pages made stale by a settings save.
+ *
+ * Takes the fields that actually changed rather than purging all five every
+ * time. Editing the hero headline should not regenerate the privacy policy —
+ * not because the cost matters at this size, but because a purge list that is
+ * always the same tells whoever reads the response nothing about what happened.
+ *
+ * An unknown field name contributes nothing and is not an error: the caller
+ * diffs whole objects, so it can legitimately see a key this table does not
+ * describe. Silently ignoring it is right; the alternative is a settings save
+ * that fails because a field was added to the model.
+ */
+export function settingsPaths(changedFields: Iterable<string>): string[] {
+  const paths = new Set<string>();
+
+  for (const field of changedFields) {
+    for (const path of SETTINGS_FIELD_PAGES[field] ?? []) paths.add(path);
+  }
+
+  return [...paths];
+}

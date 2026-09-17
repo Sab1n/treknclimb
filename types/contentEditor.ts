@@ -2,6 +2,7 @@ import type { IDestination } from '../models/Destination';
 import type { IActivity } from '../models/Activity';
 import type { ITestimonial } from '../models/Testimonial';
 import type { IFaq } from '../models/Faq';
+import type { ITeamMember } from '../models/TeamMember';
 
 
 /**
@@ -222,6 +223,59 @@ export const emptyFaq: FaqEditorValues = {
   answer: '',
   category: '',
   destination: '',
+  displayOrder: '0',
+  status: 'draft',
+};
+
+/**
+ * The team-member editor's form shape.
+ *
+ * `credentials` and `languages` are string arrays here and on the model, so
+ * they pass through unchanged — but they are edited as repeatable rows, and a
+ * row needs a stable identity for React and the drag list. The editor wraps
+ * them in `{ key, value }` locally and unwraps before sending; keeping the
+ * stored shape a plain `string[]` means nothing on the public side has to know
+ * about that.
+ */
+export interface TeamMemberEditorValues {
+  name: string;
+  role: string;
+  photo: string;
+  photoAlt: string;
+  bio: string;
+  credentials: string[];
+  languages: string[];
+  yearsExperience: string;
+  displayOrder: string;
+  status: string;
+}
+
+export function toTeamMemberValues(
+  member: ITeamMember
+): TeamMemberEditorValues {
+  return {
+    name: text(member.name),
+    role: text(member.role),
+    photo: text(member.photo),
+    photoAlt: text(member.photoAlt),
+    bio: text(member.bio),
+    credentials: member.credentials ?? [],
+    languages: member.languages ?? [],
+    yearsExperience: numeric(member.yearsExperience),
+    displayOrder: numeric(member.displayOrder),
+    status: member.status,
+  };
+}
+
+export const emptyTeamMember: TeamMemberEditorValues = {
+  name: '',
+  role: '',
+  photo: '',
+  photoAlt: '',
+  bio: '',
+  credentials: [],
+  languages: [],
+  yearsExperience: '',
   displayOrder: '0',
   status: 'draft',
 };

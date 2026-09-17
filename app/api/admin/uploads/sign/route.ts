@@ -7,6 +7,7 @@ import Trip from '../../../../../models/Trip';
 import Activity from '../../../../../models/Activity';
 import Destination from '../../../../../models/Destination';
 import Testimonial from '../../../../../models/Testimonial';
+import TeamMember from '../../../../../models/TeamMember';
 import {
   signUpload,
   isUploadCollection,
@@ -75,6 +76,7 @@ const MODELS: Record<UploadCollection, Model<any>> = {
   activities: Activity,
   destinations: Destination,
   testimonials: Testimonial,
+  team: TeamMember,
 };
 
 export async function POST(request: Request) {
