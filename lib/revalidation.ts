@@ -4,6 +4,7 @@ import { connectDB } from './db';
 import Trip from '../models/Trip';
 import Activity from '../models/Activity';
 import Destination from '../models/Destination';
+import BlogCategory from '../models/BlogCategory';
 
 /**
  * Which cached pages a content change makes stale.
@@ -496,4 +497,62 @@ export async function pricePaths(): Promise<string[]> {
   }
 
   return [...paths];
+}
+
+/**
+ * Every public page a blog post appears on.
+ *
+ * Takes the category id rather than reading it off the post, because a save
+ * that **moves** a post between categories has to purge both archives — the one
+ * it left is still listing it, and after the assignment there is nothing on the
+ * document that names it. Same shape, and the same reason, as `faqPaths`.
+ *
+ * ## There is no trip page in this list
+ *
+ * `BlogPost.relatedTrips` points from the post **to** trips, and it renders on
+ * the *post* page as "trips this answers a question about". No trip page shows
+ * the posts that reference it — `Trip.relatedTrips` is a separate trip-to-trip
+ * field, and nothing queries blog posts from a trip route.
+ *
+ * So editing a post cannot make a trip page stale, and purging one would be a
+ * regeneration that changes nothing. If a related-posts section is ever added
+ * to the trip page, this is where the reverse lookup belongs.
+ *
+ * ## Drafts purge too
+ *
+ * The caller decides. Unlike a trip, a post that goes from published to draft
+ * has to purge the listings it was on — that is the whole point of
+ * unpublishing, and skipping the purge because the new status is not
+ * `published` leaves it on /blog for the revalidate window.
+ */
+export async function blogPostPaths(options: {
+  slug: string;
+  categoryId?: unknown;
+}): Promise<string[]> {
+  await connectDB();
+
+  const paths = [
+    `/blog/${options.slug}`,
+    '/blog',
+    // The homepage carries the three most recent posts.
+    '/',
+  ];
+
+  if (options.categoryId) {
+    let category;
+
+    try {
+      category = await BlogCategory.findById(options.categoryId)
+        .select('slug')
+        .lean<{ slug: string }>()
+        .exec();
+    } catch {
+      // A malformed id throws a CastError rather than returning null.
+      category = null;
+    }
+
+    if (category) paths.push(`/blog/category/${category.slug}`);
+  }
+
+  return paths;
 }

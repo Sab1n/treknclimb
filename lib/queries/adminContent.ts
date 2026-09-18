@@ -8,6 +8,8 @@ import Testimonial, {
 } from '../../models/Testimonial';
 import Faq, { IFaq, IFaqPopulated } from '../../models/Faq';
 import TeamMember, { ITeamMember } from '../../models/TeamMember';
+import BlogPost, { IBlogPost, IBlogPostPopulated } from '../../models/BlogPost';
+import BlogCategory from '../../models/BlogCategory';
 
 /*
  * Side-effect import: `.populate('destination')` resolves the ref by model
@@ -290,4 +292,74 @@ export async function getTeamMemberForEdit(
     // A malformed id throws a CastError rather than returning null.
     return null;
   }
+}
+
+/* ---------------------------------------------------------------- *
+ *  Blog
+ * ---------------------------------------------------------------- */
+
+/** Every post with its category, newest first. Drafts included. */
+export async function getBlogPostsForAdmin(): Promise<IBlogPostPopulated[]> {
+  await connectDB();
+
+  return BlogPost.find()
+    .sort({ publishedAt: -1, createdAt: -1 })
+    .populate('category', 'name slug')
+    .lean<IBlogPostPopulated[]>()
+    .exec();
+}
+
+export async function getBlogPostForEdit(id: string): Promise<IBlogPost | null> {
+  await connectDB();
+
+  try {
+    return await BlogPost.findById(id).lean<IBlogPost>().exec();
+  } catch {
+    // A malformed id throws a CastError rather than returning null.
+    return null;
+  }
+}
+
+/** Categories as options, in display order. */
+export interface CategoryOption {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export async function getCategoryOptions(): Promise<CategoryOption[]> {
+  await connectDB();
+
+  const categories = await BlogCategory.find()
+    .sort({ displayOrder: 1, name: 1 })
+    .select('name slug')
+    .lean<{ _id: unknown; name: string; slug: string }[]>()
+    .exec();
+
+  return categories.map((category) => ({
+    id: String(category._id),
+    name: category.name,
+    slug: category.slug,
+  }));
+}
+
+/**
+ * Is this slug taken by a different post?
+ *
+ * A check, not a lock — the unique index is what guarantees correctness and the
+ * save route handles the resulting 11000. Checking first turns a driver error
+ * with no field path into an ordinary field error the editor can render.
+ */
+export async function isBlogSlugTaken(
+  slug: string,
+  exceptId: string
+): Promise<boolean> {
+  await connectDB();
+
+  const existing = await BlogPost.findOne({ slug: slug.toLowerCase().trim() })
+    .select('_id')
+    .lean<{ _id: unknown }>()
+    .exec();
+
+  return !!existing && String(existing._id) !== exceptId;
 }

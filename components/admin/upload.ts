@@ -33,7 +33,8 @@ export type UploadCollection =
   | 'activities'
   | 'destinations'
   | 'testimonials'
-  | 'team';
+  | 'team'
+  | 'blog';
 
 /** What Cloudinary returns. Only these two fields are used. */
 interface CloudinaryUploadResponse {

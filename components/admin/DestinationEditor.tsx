@@ -16,6 +16,7 @@ import {
   NumberField,
   FieldRow,
 } from './fields';
+import RichTextEditor from './RichTextEditor';
 
 /**
  * The destination editor.
@@ -279,16 +280,22 @@ export default function DestinationEditor({
             hint="The card blurb, used on /destinations and in the hero. One paragraph."
           />
 
-          <TextAreaField
+          {/*
+            Rich text, because this field goes through `parseLongForm` and then
+            `PostBody`. Its `##` headings become the page's sections and its
+            first `>` in each section becomes that section's pull quote — so the
+            markup here is load-bearing structure, not decoration.
+          */}
+          <RichTextEditor
             label="Activities introduction"
             id="activitiesIntro"
-            rows={14}
             value={values.activitiesIntro}
             onChange={(value) => set('activitiesIntro', value)}
             error={errors.activitiesIntro}
+            minHeight="24rem"
             hint={
               hasActivities
-                ? 'The editorial body of the /activities page — seasons, permits, how to choose between activity types. Markdown subset: ## headings, lists, links, quotes. Card grids do not rank; this does.'
+                ? 'The editorial body of the /activities page — seasons, permits, how to choose between activity types. Each H2 starts a new section, and the first quote inside a section is pulled out as its pull quote.'
                 : 'This destination has no activities page, so this is not rendered anywhere. Leave it blank.'
             }
           />

@@ -16,6 +16,7 @@ import {
   CheckboxField,
   FieldRow,
 } from '../fields';
+import RichTextEditor from '../RichTextEditor';
 
 /**
  * Basic details: identity, placement in the hierarchy, and the three prose
@@ -241,15 +242,20 @@ export default function TripBasicTab({
         hint="Cost, duration, difficulty and season in plain sentences, near the top of the page. Written, never generated — this is what an AI answer engine extracts, and it converts."
       />
 
-      <TextAreaField
+      {/*
+        Rich text. The Overview section on the trip page renders this through
+        `PostBody`, so headings, lists and links are interpreted rather than
+        printed. Nothing here ever reaches `dangerouslySetInnerHTML`.
+      */}
+      <RichTextEditor
         label="Description"
         id="description"
         required
-        rows={12}
         value={values.description}
         onChange={(value) => set('description', value)}
         error={errors.description}
-        hint="The long-form overview. Markdown subset only — headings, paragraphs, lists, links and quotes. Nothing here is ever passed to dangerouslySetInnerHTML."
+        minHeight="22rem"
+        hint="The long-form overview shown under “Overview” on the trip page."
       />
     </div>
   );

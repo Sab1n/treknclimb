@@ -20,6 +20,7 @@ import {
 import UnsavedChangesGuard from './UnsavedChangesGuard';
 import SaveBar from './SaveBar';
 import { TextField, TextAreaField, SelectField, FieldRow } from './fields';
+import RichTextEditor from './RichTextEditor';
 
 /**
  * The site settings editor.
@@ -324,15 +325,19 @@ export default function SettingsEditor({
             hint="One or two sentences. Used under the About heading and as the organisation description in structured data, so it is quoted off-site."
           />
 
-          <TextAreaField
+          {/*
+            The rich text editor, not a textarea. This field renders through
+            `PostBody` on /about, so it is one of the three places where the
+            Markdown subset is actually interpreted rather than printed.
+          */}
+          <RichTextEditor
             label="The company story"
             id="longDescription"
-            rows={14}
-            maxLength={20000}
             value={values.longDescription}
             onChange={(v) => set('longDescription', v)}
             error={errors.longDescription}
-            hint="The “How this started” section on About. Blank lines start a new paragraph; ## starts a subheading; - starts a bullet. No HTML — anything else is printed as written."
+            hint="The “How this started” section on About."
+            minHeight="22rem"
           />
         </Section>
 

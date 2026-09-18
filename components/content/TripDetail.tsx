@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import Header from '../layout/Header';
+import PostBody from './PostBody';
 import Footer from '../layout/Footer';
 import AffiliationStrip from '../layout/AffiliationStrip';
 import Breadcrumbs from '../ui/Breadcrumbs';
@@ -199,14 +200,22 @@ export default function TripDetail({
                 <h2 className="font-display text-2xl font-extrabold tracking-display">
                   Overview
                 </h2>
-                {trip.description.split('\n\n').map((paragraph, index) => (
-                  <p
-                    key={index}
-                    className="mt-3 max-w-prose leading-relaxed text-muted"
-                  >
-                    {paragraph}
-                  </p>
-                ))}
+                {/*
+                  Through `PostBody`, not a manual paragraph split.
+
+                  The split handled blank-line paragraphs and nothing else, so a
+                  heading or a list written in the admin came out as literal
+                  `##` and `-` characters. Now that the trip editor uses the
+                  rich text editor, this field carries the same Markdown subset
+                  as a blog body and has to be interpreted the same way.
+
+                  Every existing description is plain paragraphs and parses to
+                  exactly the block count the old split produced, so nothing
+                  currently published changes — verified before the swap.
+                */}
+                <div className="mt-3 max-w-prose text-muted">
+                  <PostBody body={trip.description} />
+                </div>
               </section>
 
               {trip.highlights.length > 0 && (

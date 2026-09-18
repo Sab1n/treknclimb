@@ -95,6 +95,33 @@ export interface IBlogPostWithTrips
   relatedTrips: ITripPopulated[];
 }
 
+/**
+ * Required only once the post is live.
+ *
+ * ## Why these four are gated
+ *
+ * They were unconditionally required, and that made a draft impossible to
+ * save: a post is started with a title and a category and written over the
+ * following week, so demanding the finished body before the record can exist
+ * is the same deadlock `Trip.coverImage` had. Verified rather than reasoned —
+ * creating a minimal draft through the admin route failed with
+ * `Path \`body\` is required` on all four at once.
+ *
+ * Loosening them outright would be wrong in the other direction: a post with no
+ * body must never reach the site. So `status` is the gate, exactly as it is on
+ * Trip. A draft is by definition unfinished; publishing is the act that claims
+ * it is not, and that is where the check belongs.
+ *
+ * `archived` is deliberately ungated. Archiving is how a post is retired, and
+ * refusing to archive an incomplete one would trap it as a draft forever.
+ *
+ * A normal function, not an arrow: Mongoose calls `required` with `this` bound
+ * to the document, and an arrow would capture the module scope instead.
+ */
+function requiredToPublish(this: { status?: PublishStatus }): boolean {
+  return this.status === 'published';
+}
+
 const BlogPostSchema = new Schema<IBlogPost>(
   {
     title: { type: String, required: true, trim: true },
@@ -108,10 +135,28 @@ const BlogPostSchema = new Schema<IBlogPost>(
       validate: reservedSlugValidator('/blog'),
     },
     slugHistory: { type: [String], default: [] },
-    excerpt: { type: String, required: true },
-    body: { type: String, required: true },
-    featuredImage: { type: String, required: true },
-    featuredImageAlt: { type: String, required: true, trim: true },
+    /*
+     * Required to publish, not required to exist — see the note above.
+     * `lib/validators/adminBlog.ts` mirrors this so the failure arrives keyed
+     * to a field rather than as a Mongoose ValidationError after a round trip,
+     * but the model is the guarantee: a migration script can walk straight past
+     * the schema layer and cannot walk past this.
+     */
+    excerpt: { type: String, required: requiredToPublish },
+    body: { type: String, required: requiredToPublish },
+    featuredImage: { type: String, required: requiredToPublish },
+    /*
+     * Alt text is required whenever there *is* an image, published or not —
+     * CLAUDE.md makes that unconditional, so this is a different rule from the
+     * three above and deliberately not `requiredToPublish`.
+     */
+    featuredImageAlt: {
+      type: String,
+      trim: true,
+      required: function (this: IBlogPost) {
+        return !!this.featuredImage;
+      },
+    },
     category: {
       type: Schema.Types.ObjectId,
       ref: 'BlogCategory',
@@ -142,6 +187,65 @@ const BlogPostSchema = new Schema<IBlogPost>(
 BlogPostSchema.index({ slugHistory: 1 });
 // The blog index and category archives both sort published posts by date.
 BlogPostSchema.index({ status: 1, publishedAt: -1 });
+
+/**
+ * The alt-text rule again, for query middleware.
+ *
+ * `featuredImageAlt`'s conditional `required` protects `save()` and
+ * `insertMany`. It does **nothing** for `findOneAndUpdate`, even with
+ * `runValidators: true`: there is no document, so `this.featuredImage` is
+ * `undefined`, the condition returns false, and the field is simply not
+ * required. CLAUDE.md records that verified on `Testimonial`, where an update
+ * stored a photo with no alt text.
+ *
+ * The admin routes all use `findById` → assign → `save()`, so nothing today
+ * reaches this. It is here for the import script that has not been written.
+ *
+ * The update is merged onto the stored document before testing, because either
+ * half can create the violation: adding an image to a post with no alt, or
+ * clearing the alt on a post that has one.
+ */
+BlogPostSchema.pre('findOneAndUpdate', async function () {
+  const update = (this.getUpdate() ?? {}) as Record<string, unknown> & {
+    $set?: Record<string, unknown>;
+    $unset?: Record<string, unknown>;
+  };
+
+  const set = { ...update, ...(update.$set ?? {}) };
+  const unset = update.$unset ?? {};
+
+  const touchesImage =
+    'featuredImage' in set ||
+    'featuredImageAlt' in set ||
+    'featuredImage' in unset ||
+    'featuredImageAlt' in unset;
+
+  if (!touchesImage) return;
+
+  const current = await this.model
+    .findOne(this.getQuery())
+    .select('featuredImage featuredImageAlt')
+    .lean<{ featuredImage?: string; featuredImageAlt?: string }>()
+    .exec();
+
+  function resolve(field: 'featuredImage' | 'featuredImageAlt'): string {
+    if (field in unset) return '';
+    if (field in set) return String(set[field] ?? '').trim();
+    return (current?.[field] ?? '').trim();
+  }
+
+  if (resolve('featuredImage') && !resolve('featuredImageAlt')) {
+    /*
+     * A thrown Error, not a ValidationError. Query middleware has no document
+     * to attach field errors to, so this surfaces as a plain message with no
+     * field mapping — which CLAUDE.md warns admin error handling has to cope
+     * with.
+     */
+    throw new Error(
+      'A featured image requires alt text. Set featuredImageAlt in the same update, or use findById + save().'
+    );
+  }
+});
 
 const BlogPost: Model<IBlogPost> =
   mongoose.models.BlogPost ||
