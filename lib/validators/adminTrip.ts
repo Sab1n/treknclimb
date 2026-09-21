@@ -192,7 +192,12 @@ export const adminTripSchema = z
         'Choose one of the listed difficulty grades'
       ),
     bestMonths: z.array(z.enum(MONTHS)),
-    region: optionalText(120),
+    /*
+     * A Region id, or '' for "no region" — which is the common case, not an
+     * edge one. Validated as a string here and turned into an ObjectId or null
+     * by the route, exactly like `activity` two fields up.
+     */
+    region: z.string().trim(),
     maxAltitudeM: optionalNumber('Max altitude', 0, 9000),
     peakName: optionalText(120),
     tripGrade: optionalText(120),

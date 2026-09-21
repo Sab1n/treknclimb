@@ -208,6 +208,12 @@ export async function POST(request: Request) {
       phone: data.phone,
       nationality: data.nationality,
       trip: tripId,
+      /*
+       * Stored, not just emailed. The reference can stop resolving — a deleted
+       * trip would otherwise turn this inquiry into "General inquiry" and lose
+       * what the visitor actually asked about.
+       */
+      tripTitle: tripTitle ?? undefined,
       preferredDate: data.preferredDate ? new Date(data.preferredDate) : undefined,
       travellers: data.travellers,
       message: data.message,

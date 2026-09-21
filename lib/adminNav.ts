@@ -43,6 +43,7 @@ export const ADMIN_NAV: AdminNavSection[] = [
     items: [
       { label: 'Trips', href: '/admin/trips' },
       { label: 'Activities', href: '/admin/activities' },
+      { label: 'Regions', href: '/admin/regions' },
       { label: 'Destinations', href: '/admin/destinations' },
       { label: 'Blog', href: '/admin/blog' },
       { label: 'Categories' },
@@ -76,6 +77,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   inquiries: 'Booking inquiries',
   trips: 'Trips',
   activities: 'Activities',
+  regions: 'Regions',
   destinations: 'Destinations',
   redirects: 'Redirects',
   testimonials: 'Testimonials',
@@ -103,6 +105,7 @@ const RECORD_LABELS: Record<string, string> = {
   inquiries: 'Inquiry',
   trips: 'Trip',
   activities: 'Activity',
+  regions: 'Region',
   destinations: 'Destination',
   blog: 'Post',
   team: 'Team member',

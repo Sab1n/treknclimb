@@ -27,14 +27,25 @@ export const ACCEPTED_IMAGE_TYPES = [
   'image/avif',
 ];
 
-/** Which collection the record belongs to. The server checks this too. */
+/**
+ * Which collection the record belongs to. The server checks this too.
+ *
+ * **Deliberately duplicated from `UPLOAD_COLLECTIONS` in `lib/cloudinary.ts`
+ * rather than imported.** That module pulls in the Cloudinary SDK, which holds
+ * the API secret and must never reach a Client Component — importing the type
+ * from it would drag the whole runtime into the browser bundle. The cost is
+ * that the two lists can drift: adding a collection means editing both, and
+ * the server rejects anything the canonical list does not have, so the failure
+ * is a refused upload rather than a silent one.
+ */
 export type UploadCollection =
   | 'trips'
   | 'activities'
   | 'destinations'
   | 'testimonials'
   | 'team'
-  | 'blog';
+  | 'blog'
+  | 'regions';
 
 /** What Cloudinary returns. Only these two fields are used. */
 interface CloudinaryUploadResponse {

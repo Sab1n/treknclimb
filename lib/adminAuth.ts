@@ -10,7 +10,7 @@ import { ADMIN_SESSION_COOKIE, verifySessionToken } from './auth';
  * The database half of admin authentication.
  *
  * **Node runtime only.** This imports Mongoose and bcrypt, neither of which
- * runs on the edge, so `middleware.ts` must never import it — see the note at
+ * runs on the edge, so `proxy.ts` must never import it — see the note at
  * the top of `lib/auth.ts` for why the split exists.
  *
  * ## Two gates, and why both

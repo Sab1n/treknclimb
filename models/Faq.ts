@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
+
+import { noMojibakePlugin } from './shared/noMojibake';
 import { IDestination } from './Destination';
 import { PublishStatus, PUBLISH_STATUSES } from './shared/status';
 
@@ -59,6 +61,13 @@ const FaqSchema = new Schema<IFaq>(
   },
   { timestamps: true }
 );
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+FaqSchema.plugin(noMojibakePlugin);
 
 const Faq: Model<IFaq> =
   mongoose.models.Faq || mongoose.model<IFaq>('Faq', FaqSchema);

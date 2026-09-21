@@ -18,6 +18,7 @@ import {
 import { getBookingRequests } from '../../../lib/queries/bookings';
 import { countRecentRejections } from '../../../lib/queries/rejections';
 import { formatDateTime, daysSince } from '../../../lib/adminTime';
+import { bookingTripTitle, GENERAL_INQUIRY } from '../../../lib/bookingTrip';
 
 /**
  * The admin dashboard.
@@ -212,7 +213,7 @@ export default async function AdminDashboardPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-muted">
-                      {booking.trip?.title ?? 'General inquiry'}
+                      {bookingTripTitle(booking) ?? GENERAL_INQUIRY}
                     </td>
                     <td className="px-4 py-3">
                       <StatusSelect

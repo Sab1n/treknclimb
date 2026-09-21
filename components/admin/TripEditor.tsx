@@ -10,6 +10,7 @@ import type {
 import type {
   DestinationOption,
   ActivityOption,
+  RegionOption,
 } from '../../lib/queries/adminTrips';
 import TripBasicTab from './trip/TripBasicTab';
 import TripFactsTab from './trip/TripFactsTab';
@@ -132,11 +133,13 @@ export default function TripEditor({
   meta,
   destinations,
   activities,
+  regions = [],
 }: {
   initialValues: TripEditorValues;
   meta: TripEditorMeta;
   destinations: DestinationOption[];
   activities: ActivityOption[];
+  regions?: RegionOption[];
 }) {
   const router = useRouter();
 
@@ -160,9 +163,38 @@ export default function TripEditor({
    */
   const [baseline, setBaseline] = useState(initialValues);
 
+  /**
+   * Sets one field, by value **or by updater**.
+   *
+   * The updater form exists because of a real bug. `GalleryUploader` uploads a
+   * batch one file at a time and appended each result with
+   * `onGalleryChange([...gallery, row])` — where `gallery` was the prop as it
+   * stood when the batch *started*. Every upload therefore spread the same
+   * stale array and overwrote the previous one's row, so selecting five images
+   * left exactly one: the last.
+   *
+   * Passing a function instead means each append reads the list React holds at
+   * that moment, so the batch accumulates — and a row deleted mid-upload is not
+   * resurrected either. It is the same reason `setValues` below is already
+   * called with a function rather than a spread of `values`.
+   */
   const set = useCallback(
-    <K extends keyof TripEditorValues>(key: K, value: TripEditorValues[K]) => {
-      setValues((current) => ({ ...current, [key]: value }));
+    <K extends keyof TripEditorValues>(
+      key: K,
+      value: TripEditorValues[K] | ((current: TripEditorValues[K]) => TripEditorValues[K])
+    ) => {
+      setValues((current) => ({
+        ...current,
+        /*
+         * Safe to discriminate on `typeof`: no field on TripEditorValues is a
+         * function — they are strings, booleans and arrays — so a function here
+         * is unambiguously an updater.
+         */
+        [key]:
+          typeof value === 'function'
+            ? (value as (c: TripEditorValues[K]) => TripEditorValues[K])(current[key])
+            : value,
+      }));
 
       /*
        * Clear this field's error as soon as it is edited. Leaving it would
@@ -179,6 +211,57 @@ export default function TripEditor({
     },
     []
   );
+
+  const [deleting, setDeleting] = useState(false);
+
+  /**
+   * Delete a draft.
+   *
+   * Only offered for drafts. A published trip has a URL that has been crawled
+   * and linked, so the admin archives it instead — the page leaves the site and
+   * the sitemap, the record stays, and the decision is reversible. The server
+   * enforces that too; this just does not show a button that would be refused.
+   */
+  async function remove() {
+    /*
+     * `confirm` rather than a styled modal: it is synchronous, which is what
+     * lets it actually stop the action, and it is the dialog people already
+     * recognise as "this is irreversible".
+     */
+    if (
+      !window.confirm(
+        `Delete the draft "${values.title}"? This cannot be undone. It will be removed from any other trip's or blog post's related list, and any testimonial attached to it.`
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    setFormError(null);
+
+    try {
+      const response = await fetch(`/api/admin/trips/${meta.id}`, {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+      });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        // 409 means it is published or archived. The message says what to do
+        // instead, so it is shown as-is rather than softened.
+        setFormError(result.error ?? 'Could not delete this trip.');
+        return;
+      }
+
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign('/admin/trips');
+    } catch {
+      setFormError('Could not reach the server. Nothing was deleted.');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   /*
    * A structural comparison rather than a per-field one. Every value here is a
@@ -388,7 +471,12 @@ export default function TripEditor({
         )}
 
         {tab === 'Facts' && (
-          <TripFactsTab values={values} errors={errors} set={set} />
+          <TripFactsTab
+            values={values}
+            errors={errors}
+            set={set}
+            regions={regions}
+          />
         )}
 
         {tab === 'Pricing' && (
@@ -463,6 +551,59 @@ export default function TripEditor({
             errors={errors}
           />
         )}
+
+        {/*
+          Delete sits at the foot of the form, outside the save bar and styled
+          as a destructive outline rather than a button beside Save. An
+          irreversible action should not be one mis-aimed click away from the
+          one performed constantly.
+
+          Shown only for drafts. Offering it on a published trip and then
+          refusing the request would be a worse experience than not offering it
+          — the server refuses either way.
+        */}
+        <section className="mt-12 border-t border-hairline pt-6">
+          <h2 className="font-display text-base font-extrabold tracking-display">
+            {values.status === 'draft' ? 'Delete this draft' : 'Deleting this trip'}
+          </h2>
+
+          <p className="mt-1 max-w-prose text-sm text-muted">
+            {values.status === 'draft' ? (
+              <>
+                A draft has never been public, so there is no URL to preserve and
+                nothing to redirect. It will also be removed from any other
+                trip&rsquo;s or blog post&rsquo;s related list and from any
+                testimonial attached to it. Inquiries keep the trip name they
+                were made about.
+              </>
+            ) : values.status === 'published' ? (
+              <>
+                A published trip cannot be deleted. Its URL has been crawled and
+                linked, and deleting it would leave those links dead with nothing
+                to redirect to. Set the status to <strong>archived</strong>{' '}
+                instead — the page leaves the site and the sitemap, the record
+                stays, and it can be brought back.
+              </>
+            ) : (
+              <>
+                This trip is archived, which already keeps it off the site and out
+                of the sitemap. Deleting it would destroy the record along with
+                the history attached to it, so it is not offered.
+              </>
+            )}
+          </p>
+
+          {values.status === 'draft' && (
+            <button
+              type="button"
+              onClick={remove}
+              disabled={deleting || saving}
+              className="mt-3 rounded-full border-2 border-error px-5 py-2 text-sm font-semibold text-error transition-colors hover:bg-error hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {deleting ? 'Deleting…' : 'Delete draft'}
+            </button>
+          )}
+        </section>
       </div>
     </div>
   );

@@ -16,6 +16,12 @@ export interface TripFilterMeta {
   destinationSlug: string;
   /** null for India, Tibet and Bhutan — the asymmetry, in filter form. */
   activitySlug: string | null;
+  /**
+   * null for every trip with no region, which is most of them — India and
+   * Bhutan have no region pages, and a city tour is not in a trekking region.
+   * "No region" is an ordinary value here, not missing data.
+   */
+  regionSlug: string | null;
   durationDays: number;
   difficulty: TripDifficulty | null;
   price: number;
@@ -56,6 +62,7 @@ export type SortKey = (typeof SORT_OPTIONS)[number]['key'];
 export interface TripFilterState {
   destination: string | null;
   activity: string | null;
+  region: string | null;
   duration: string | null;
   difficulty: string | null;
   price: string | null;
@@ -65,6 +72,7 @@ export interface TripFilterState {
 export const EMPTY_FILTERS: TripFilterState = {
   destination: null,
   activity: null,
+  region: null,
   duration: null,
   difficulty: null,
   price: null,
@@ -75,6 +83,7 @@ export const EMPTY_FILTERS: TripFilterState = {
 export const FILTER_KEYS = [
   'destination',
   'activity',
+  'region',
   'duration',
   'difficulty',
   'price',
@@ -85,6 +94,7 @@ export type FilterKey = (typeof FILTER_KEYS)[number];
 export const FILTER_LABELS: Record<FilterKey, string> = {
   destination: 'destination',
   activity: 'activity',
+  region: 'region',
   duration: 'duration',
   difficulty: 'grade',
   price: 'price',
@@ -113,6 +123,13 @@ export function matches(trip: TripFilterMeta, filters: TripFilterState): boolean
   // layer. It is not offered otherwise, and is ignored if it somehow arrives
   // in the URL — a stale link must not silently return nothing.
   if (filters.activity && trip.activitySlug !== filters.activity) return false;
+
+  /*
+   * Same treatment as activity: only meaningful within a destination that has
+   * regions, ignored rather than emptied if a stale link carries one that no
+   * longer exists.
+   */
+  if (filters.region && trip.regionSlug !== filters.region) return false;
 
   if (filters.difficulty && trip.difficulty !== filters.difficulty) return false;
 
@@ -207,6 +224,7 @@ export function queryToFilters(search: string): TripFilterState {
   return {
     destination: params.get('destination'),
     activity: params.get('activity'),
+    region: params.get('region'),
     duration: params.get('duration'),
     difficulty: params.get('difficulty'),
     price: params.get('price'),

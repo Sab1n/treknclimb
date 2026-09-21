@@ -75,7 +75,17 @@ export default function GalleryUploader({
   errors: Record<string, string>;
   onCoverChange: (publicId: string) => void;
   onCoverAltChange: (alt: string) => void;
-  onGalleryChange: (rows: GalleryRow[]) => void;
+  /**
+   * Accepts an updater as well as a value.
+   *
+   * **The updater form is required for the batch upload below**, not a
+   * convenience: appending with a spread of the `gallery` prop reads the list
+   * as it was when the batch started, so each file in a multi-select
+   * overwrites the previous one's row and only the last survives.
+   */
+  onGalleryChange: (
+    rows: GalleryRow[] | ((current: GalleryRow[]) => GalleryRow[])
+  ) => void;
 }) {
   const [pending, setPending] = useState<PendingUpload[]>([]);
   const [configError, setConfigError] = useState<string | null>(null);
@@ -121,13 +131,20 @@ export default function GalleryUploader({
           onCoverChange(publicId);
         } else {
           /*
+           * **An updater, never `[...gallery, row]`.** This loop is async and
+           * runs once per file; `gallery` is the prop captured when the batch
+           * started, so spreading it would make every upload overwrite the
+           * previous one's row and a five-file selection would land one image.
+           * That was the bug. The updater reads the list as it stands at the
+           * moment each upload finishes.
+           *
            * Appended with empty alt text, which is invalid until filled in —
            * deliberately. The row appears immediately with its alt field
            * flagged, so the requirement is visible at the moment the editor is
            * looking at the image rather than at save time.
            */
-          onGalleryChange([
-            ...gallery,
+          onGalleryChange((current) => [
+            ...current,
             { key: newRowKey('img'), url: publicId, alt: '', caption: '' },
           ]);
         }

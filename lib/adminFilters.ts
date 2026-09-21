@@ -5,8 +5,14 @@ import {
 import {
   BOOKING_SORT_FIELDS,
   type BookingSortField,
-  type BookingListOptions,
-} from './queries/bookings';
+} from '../models/shared/bookingSort';
+/*
+ * Type-only, so it is erased at compile time and does not pull `lib/db` in.
+ * The vocabulary above comes from `models/shared/` for exactly that reason —
+ * this module parses a query string and touches no database, and it should not
+ * need one to be imported.
+ */
+import type { BookingListOptions } from './queries/bookings';
 import { startOfNepalDay, endOfNepalDay } from './adminTime';
 
 /**
@@ -29,6 +35,16 @@ export interface InquiryFilters {
   toInput: string;
   sort: BookingSortField;
   direction: 'asc' | 'desc';
+  /**
+   * True when the two dates arrived the wrong way round and were swapped.
+   *
+   * Surfaced rather than handled silently. An inverted range is not a security
+   * problem — it matches nothing — but it looks exactly like "there are no
+   * inquiries in this period", which is the wrong conclusion to hand someone
+   * checking whether the form is working. Swapping without saying so would
+   * replace a confusing empty table with a confusing full one.
+   */
+  datesSwapped: boolean;
 }
 
 export interface InquirySearchParams {
@@ -54,15 +70,44 @@ export function parseInquiryFilters(
     ? (params.sort as BookingSortField)
     : 'createdAt';
 
+  // Only echoed back if they parse. A junk `?from=` would otherwise render
+  // into the date input, where the browser silently discards it and the admin
+  // sees an empty box next to a filtered table.
+  let fromInput = startOfNepalDay(params.from) ? params.from! : '';
+  let toInput = endOfNepalDay(params.to) ? params.to! : '';
+
+  /*
+   * An end date before the start date matches nothing, and nothing said so.
+   *
+   * Both bounds are applied to the same query, so `from` after `to` produces
+   * an empty result that is indistinguishable from a genuinely quiet week —
+   * and the date inputs still show what was typed, so there is no visible clue.
+   * Typing them in the wrong order, or fixing one bound and forgetting the
+   * other, is an ordinary mistake rather than an attack.
+   *
+   * Swapped rather than rejected: the admin's intent is unambiguous — they want
+   * the period between these two dates — and an error message would make them
+   * retype something the server already understood. The swap is reported so the
+   * screen can say it happened.
+   *
+   * Compared as the **instants the bounds become**, not as strings. The bounds
+   * are Nepal-time start-of-day and end-of-day, so `from === to` is a valid
+   * single-day range and must not be treated as inverted.
+   */
+  const fromAt = startOfNepalDay(fromInput);
+  const toAt = endOfNepalDay(toInput);
+
+  const datesSwapped = !!fromAt && !!toAt && fromAt.getTime() > toAt.getTime();
+
+  if (datesSwapped) [fromInput, toInput] = [toInput, fromInput];
+
   return {
     status,
-    // Only echoed back if they parse. A junk `?from=` would otherwise render
-    // into the date input, where the browser silently discards it and the admin
-    // sees an empty box next to a filtered table.
-    fromInput: startOfNepalDay(params.from) ? params.from! : '',
-    toInput: endOfNepalDay(params.to) ? params.to! : '',
+    fromInput,
+    toInput,
     sort,
     direction: params.dir === 'asc' ? 'asc' : 'desc',
+    datesSwapped,
   };
 }
 

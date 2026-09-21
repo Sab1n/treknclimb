@@ -14,6 +14,7 @@ import {
   getActivityRoutes,
 } from '../../../lib/queries/activities';
 import { getDestinationBySlug } from '../../../lib/queries/destinations';
+import { getRegionsForActivity } from '../../../lib/queries/regions';
 import { buildTripMetadata } from '../../../lib/tripMetadata';
 
 const SITE_URL = 'https://treknclimb.com';
@@ -118,9 +119,22 @@ export default async function DestinationChildPage({
       return redirectOrNotFound(path);
     }
 
-    const trips = await getTripsByActivity(activity._id);
+    const [trips, regions] = await Promise.all([
+      getTripsByActivity(activity._id),
+      getRegionsForActivity(activity.destination._id, activity._id),
+    ]);
 
-    return <ActivityDetail activity={activity} trips={trips} />;
+    return (
+      <ActivityDetail
+        activity={activity}
+        trips={trips}
+        regions={regions.map((region) => ({
+          slug: region.slug,
+          name: region.name,
+          tripCount: region.tripCount,
+        }))}
+      />
+    );
   }
 
   /* ---------------- trip branch (everywhere else) ---------------- */

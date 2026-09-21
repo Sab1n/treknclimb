@@ -12,9 +12,25 @@ import {
 /**
  * Admin route guard, and the sliding half of the session.
  *
+ * ## Why this file is called proxy.ts
+ *
+ * It was `middleware.ts`. Next 16 deprecated that filename in favour of
+ * `proxy.ts` and the build warned about it on every run; the rename was done
+ * with the official codemod
+ * (`npx @next/codemod@canary middleware-to-proxy .`), which moves the file and
+ * renames the exported function from `middleware` to `proxy`. Nothing else
+ * changed — same matcher, same Edge runtime, same behaviour. The build still
+ * labels the output `ƒ Proxy (Middleware)`.
+ *
+ * "Middleware" remains the right word for what it does, and it is still what
+ * Next's own docs and this codebase's comments call the concept. Note that
+ * **Mongoose query middleware is an unrelated thing** that appears all over
+ * `models/` and the admin routes; a search for "middleware" will return mostly
+ * that.
+ *
  * ## What this can and cannot check
  *
- * Middleware runs on the **Edge runtime**: no Node `crypto`, no TCP, so no
+ * This runs on the **Edge runtime**: no Node `crypto`, no TCP, so no
  * Mongoose. It can verify that a token is authentically signed and unexpired —
  * which is enough to turn away every forged or stale cookie before a request
  * costs a database round trip — but it **cannot check whether the session has
@@ -59,7 +75,7 @@ const PUBLIC_ADMIN_PATHS = new Set([
   '/api/admin/logout',
 ]);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (PUBLIC_ADMIN_PATHS.has(pathname)) return NextResponse.next();

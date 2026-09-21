@@ -46,7 +46,7 @@ export default async function AdminNewsletterPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   /*
-   * A second, independent check. `middleware.ts` already blocks this path, but
+   * A second, independent check. `proxy.ts` already blocks this path, but
    * it can only verify the token's signature — it runs on the edge and cannot
    * reach the database to ask whether the session has been revoked. This is
    * where `tokenVersion` is actually checked, and it is also the gate that

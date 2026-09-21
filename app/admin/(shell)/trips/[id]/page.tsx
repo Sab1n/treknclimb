@@ -8,6 +8,7 @@ import {
   getTripForEdit,
   getDestinationOptions,
   getActivityOptions,
+  getRegionOptions,
 } from '../../../../../lib/queries/adminTrips';
 import {
   toTripEditorValues,
@@ -44,10 +45,11 @@ export default async function AdminTripEditorPage({
     redirect(`/admin/login?next=/admin/trips/${id}`);
   }
 
-  const [trip, destinations, activities] = await Promise.all([
+  const [trip, destinations, activities, regions] = await Promise.all([
     getTripForEdit(id),
     getDestinationOptions(),
     getActivityOptions(),
+    getRegionOptions(),
   ]);
 
   /*
@@ -75,6 +77,7 @@ export default async function AdminTripEditorPage({
         meta={toTripEditorMeta(trip)}
         destinations={destinations}
         activities={activities}
+        regions={regions}
       />
     </div>
   );

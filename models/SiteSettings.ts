@@ -1,5 +1,7 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
 
+import { noMojibakePlugin } from './shared/noMojibake';
+
 /**
  * Everything the client should be able to change without a code deploy:
  * organisation details and NAP, the response-time promise, headline stats,
@@ -223,6 +225,13 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
   },
   { timestamps: true }
 );
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+SiteSettingsSchema.plugin(noMojibakePlugin);
 
 const SiteSettings: Model<ISiteSettings> =
   mongoose.models.SiteSettings ||

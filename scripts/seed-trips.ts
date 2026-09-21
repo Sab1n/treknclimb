@@ -35,6 +35,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '../lib/db';
 import Destination from '../models/Destination';
 import Activity from '../models/Activity';
+import Region from '../models/Region';
 import Trip, { ITrip, IItineraryDay } from '../models/Trip';
 
 /**
@@ -67,10 +68,21 @@ type TripSeed = Omit<
   | 'relatedTrips'
   | 'destination'
   | 'activity'
+  | 'region'
 > & {
   destinationSlug: string;
   /** null for India, Tibet and Bhutan — the asymmetry, in seed form. */
   activitySlug: string | null;
+  /**
+   * A `Region` slug, resolved to an ObjectId at insert like the other two refs.
+   *
+   * null where no region record exists for the place. Ladakh and Paro/Thimphu
+   * were real free-text values before regions became a collection, and there
+   * are no India or Bhutan region records to point them at — nor any route that
+   * would render one, since the only region URL sits under an activity segment.
+   * Left null rather than invented.
+   */
+  regionSlug: string | null;
 };
 
 const trips: TripSeed[] = [
@@ -107,7 +119,7 @@ const trips: TripSeed[] = [
     hasElevationProfile: true,
     tripGrade: 'Teahouse trek, high altitude',
     maxAltitudeM: 5545,
-    region: 'Everest / Khumbu',
+    regionSlug: 'everest',
     minGroupSize: 1,
     maxGroupSize: 12,
     bestMonths: ['March', 'April', 'May', 'September', 'October', 'November'],
@@ -218,7 +230,7 @@ const trips: TripSeed[] = [
     hasElevationProfile: true,
     tripGrade: 'Teahouse trek, moderate altitude',
     maxAltitudeM: 4130,
-    region: 'Annapurna',
+    regionSlug: 'annapurna',
     minGroupSize: 1,
     maxGroupSize: 12,
     bestMonths: ['March', 'April', 'May', 'October', 'November'],
@@ -321,7 +333,7 @@ const trips: TripSeed[] = [
     hasElevationProfile: true,
     tripGrade: 'Trekking peak, PD',
     maxAltitudeM: 6189,
-    region: 'Everest / Khumbu',
+    regionSlug: 'everest',
     peakName: 'Island Peak (Imja Tse)',
     minGroupSize: 1,
     maxGroupSize: 8,
@@ -435,7 +447,7 @@ const trips: TripSeed[] = [
     hasElevationProfile: true,
     tripGrade: 'Teahouse trek, low altitude',
     maxAltitudeM: 3210,
-    region: 'Annapurna',
+    regionSlug: 'annapurna',
     minGroupSize: 1,
     maxGroupSize: 14,
     bestMonths: ['March', 'April', 'May', 'October', 'November', 'December'],
@@ -532,7 +544,8 @@ const trips: TripSeed[] = [
     hasElevationProfile: true,
     tripGrade: 'Homestay trek, high altitude desert',
     maxAltitudeM: 5150,
-    region: 'Ladakh',
+    // Ladakh is a real region with no record and no route. See regionSlug above.
+    regionSlug: null,
     minGroupSize: 2,
     maxGroupSize: 10,
     bestMonths: ['June', 'July', 'August', 'September'],
@@ -633,7 +646,8 @@ const trips: TripSeed[] = [
     hasElevationProfile: true,
     tripGrade: 'Camping trek, moderate altitude',
     maxAltitudeM: 4200,
-    region: 'Paro / Thimphu',
+    // Paro/Thimphu, likewise.
+    regionSlug: null,
     minGroupSize: 2,
     maxGroupSize: 10,
     bestMonths: ['March', 'April', 'May', 'September', 'October', 'November'],
@@ -721,15 +735,18 @@ async function seedTrips() {
   }
 
   // Resolve the slugs in the seed data to real ObjectIds.
-  const [destinations, activities] = await Promise.all([
+  const [destinations, activities, regions] = await Promise.all([
     Destination.find().select('_id slug name hasActivities').lean(),
     Activity.find().select('_id slug').lean(),
+    Region.find().select('_id slug').lean(),
   ]);
 
   const destinationBySlug = new Map(destinations.map((d) => [d.slug, d]));
   const activityBySlug = new Map(activities.map((a) => [a.slug, a]));
+  const regionBySlug = new Map(regions.map((r) => [r.slug, r]));
 
-  const documents = trips.map(({ destinationSlug, activitySlug, ...trip }) => {
+  const documents = trips.map(
+    ({ destinationSlug, activitySlug, regionSlug, ...trip }) => {
     const destination = destinationBySlug.get(destinationSlug);
 
     if (!destination) {
@@ -744,10 +761,24 @@ async function seedTrips() {
       throw new Error(`Activity "${activitySlug}" not found.`);
     }
 
+    const region = regionSlug ? regionBySlug.get(regionSlug) : null;
+
+    /*
+     * A named region that does not exist is a typo, not an empty field — fail
+     * rather than silently storing null and leaving a trip off its own region
+     * page with nothing to explain why.
+     */
+    if (regionSlug && !region) {
+      throw new Error(
+        `Region "${regionSlug}" not found — run scripts/seed-regions.ts first.`
+      );
+    }
+
     return {
       ...trip,
       destination: destination._id,
       activity: activity ? activity._id : null,
+      region: region ? region._id : null,
     };
   });
 

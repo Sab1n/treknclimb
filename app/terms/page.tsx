@@ -6,6 +6,7 @@ import LegalDocument, {
   type LegalSection,
 } from '../../components/content/LegalDocument';
 import { getSiteSettings } from '../../lib/queries/settings';
+import { formatLegalDate } from '../../lib/legalPages';
 
 const SITE_URL = 'https://treknclimb.com';
 
@@ -27,8 +28,13 @@ const SITE_URL = 'https://treknclimb.com';
  * is unenforceable where the customer lives is worse than a short honest one.
  */
 
-/** Update whenever the text below changes. */
-const LAST_UPDATED = '10 September 2026';
+/**
+ * Shown to visitors as the version of the document they are reading.
+ *
+ * The date itself lives in `lib/legalPages.ts`, because the sitemap needs the
+ * same value as a `Date` and a second copy here would drift from it.
+ */
+const LAST_UPDATED = formatLegalDate('/terms');
 
 export const revalidate = 3600;
 

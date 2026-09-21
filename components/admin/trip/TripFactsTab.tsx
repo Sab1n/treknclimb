@@ -1,6 +1,7 @@
 'use client';
 
 import type { TripEditorValues } from '../../../types/tripEditor';
+import type { RegionOption } from '../../../lib/queries/adminTrips';
 import { MONTHS, TRIP_DIFFICULTIES } from '../../../models/shared/tripVocab';
 import {
   TextField,
@@ -22,6 +23,7 @@ export default function TripFactsTab({
   values,
   errors,
   set,
+  regions = [],
 }: {
   values: TripEditorValues;
   errors: Record<string, string>;
@@ -29,7 +31,19 @@ export default function TripFactsTab({
     key: K,
     value: TripEditorValues[K]
   ) => void;
+  regions?: RegionOption[];
 }) {
+  /*
+   * Regions in this trip's destination. Filtered on destination rather than
+   * activity — a region belongs to a place, and any trip in that place can be
+   * filed under one. Nothing checks which activity this trip is; setting a
+   * region on a peak climb is exactly how the peak-climbing region page comes
+   * to exist.
+   */
+  const available = regions.filter(
+    (region) => region.destinationId === values.destination
+  );
+
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <FieldRow>
@@ -74,13 +88,30 @@ export default function TripFactsTab({
           hint="Free-text editorial grade, separate from the difficulty list above."
         />
 
-        <TextField
+        {/*
+          A select, not free text. It was free text until regions became a
+          collection; typing "Everest / Khumbu" on one trip and "Everest" on
+          another produced two regions that were the same place, which is what
+          a listing page cannot recover from.
+        */}
+        <SelectField
           label="Region"
           id="region"
           value={values.region}
           onChange={(value) => set('region', value)}
+          options={available.map((region) => ({
+            value: region.id,
+            label: region.name,
+          }))}
+          placeholder={
+            available.length > 0 ? 'No region' : 'No regions in this destination'
+          }
           error={errors.region}
-          placeholder="Annapurna"
+          hint={
+            available.length > 0
+              ? 'Optional. Setting one puts this trip on that region’s page, under this trip’s activity.'
+              : 'No regions exist for this destination yet. Add one under Regions.'
+          }
         />
       </FieldRow>
 

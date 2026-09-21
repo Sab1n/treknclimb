@@ -128,6 +128,70 @@ export async function activityPaths(
 }
 
 /**
+ * Every public page showing a region's own content.
+ *
+ * ## Why this needs a query rather than a template
+ *
+ * A region has no single page. It has **one page per activity that has trips in
+ * it** — `/nepal/trekking/region/everest` and, the moment a peak climb is
+ * filed there, `/nepal/peak-climbing/region/everest`. Which of those exist is
+ * decided by the trips, so the set has to be read rather than assembled from a
+ * list of activity slugs someone maintains by hand.
+ *
+ * That is the same rule the pages themselves follow, and it is why nothing here
+ * mentions trekking. A hardcoded activity would purge the right paths today and
+ * silently stop purging the second activity's page the day it appears — a stale
+ * page nobody would think to look for.
+ *
+ * ## What gets purged
+ *
+ * The region pages, the activity pages above them (their "Browse by region" row
+ * carries the name and the trip count), `/trips` and its facets, every trip
+ * page in the region, and the generated files that list every URL on the site.
+ *
+ * Takes slugs as well as the id, because a rename has to purge both the old
+ * paths and the new ones — the caller invokes it twice.
+ */
+export async function regionPaths(
+  regionId: string,
+  destinationSlug: string,
+  regionSlug: string
+): Promise<string[]> {
+  await connectDB();
+
+  const paths = new Set<string>([
+    '/trips',
+    // Both are generated from every published record, so any content edit dates
+    // them. They revalidate hourly anyway; purging is what makes an edit show
+    // up in minutes instead.
+    '/sitemap.xml',
+    '/llms.txt',
+  ]);
+
+  /*
+   * Populated so the activity slug is available. Draft trips are included
+   * deliberately: a draft has no public page, but it may have *just* been
+   * unpublished, and the region page that still lists it is exactly the one
+   * that needs purging.
+   */
+  const trips = await Trip.find({ region: regionId })
+    .select('slug activity')
+    .populate('activity', 'slug')
+    .lean<{ slug: string; activity: { slug: string } | null }[]>()
+    .exec();
+
+  for (const trip of trips) {
+    if (!trip.activity) continue;
+
+    paths.add(`/${destinationSlug}/${trip.activity.slug}/region/${regionSlug}`);
+    paths.add(`/${destinationSlug}/${trip.activity.slug}`);
+    paths.add(`/${destinationSlug}/${trip.activity.slug}/${trip.slug}`);
+  }
+
+  return [...paths];
+}
+
+/**
  * A trip's canonical public URL, or null if the trip is gone or unpublished.
  *
  * The destination/activity asymmetry decides the shape: a Nepal trip lives at

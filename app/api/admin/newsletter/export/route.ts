@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/admin/newsletter/export — the subscriber list as CSV.
  *
- * Guarded twice: `middleware.ts` matches `/api/admin/:path*`, and
+ * Guarded twice: `proxy.ts` matches `/api/admin/:path*`, and
  * `requireAdmin()` throws here regardless of what the matcher covers. This
  * endpoint hands over every subscriber address in one request, so a single
  * layer is not enough.

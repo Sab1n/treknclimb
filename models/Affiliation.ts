@@ -1,5 +1,7 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
 
+import { noMojibakePlugin } from './shared/noMojibake';
+
 /**
  * Licensing and membership bodies — Department of Tourism, Nepal Tourism Board,
  * TAAN Pokhara, Nepal Mountaineering Association.
@@ -35,6 +37,13 @@ const AffiliationSchema = new Schema<IAffiliation>(
   },
   { timestamps: true }
 );
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+AffiliationSchema.plugin(noMojibakePlugin);
 
 const Affiliation: Model<IAffiliation> =
   mongoose.models.Affiliation ||

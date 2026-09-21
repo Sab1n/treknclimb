@@ -25,9 +25,20 @@ const SITE_URL = 'https://treknclimb.com';
 export default function ActivityDetail({
   activity,
   trips,
+  regions = [],
 }: {
   activity: IActivityPopulated;
   trips: ITripPopulated[];
+  /**
+   * Regions holding published trips under *this* activity, in display order.
+   *
+   * Defaults to empty, and the section simply does not render when it is —
+   * which is what makes this safe for every activity. **Nothing here tests
+   * whether the activity is trekking.** An activity has regions when its trips
+   * do; a name test would look right today and silently skip the second
+   * activity to get them.
+   */
+  regions?: { slug: string; name: string; tripCount: number }[];
 }) {
   const destination = activity.destination;
   const itemListJsonLd = {
@@ -126,6 +137,39 @@ export default function ActivityDetail({
                 All {destination.name} activities
               </Link>
             </div>
+
+            {/*
+              Browse by region, above the grid.
+
+              Placed before the trips rather than after because it is a
+              narrowing control, not a footer: someone who already knows they
+              want Everest should not have to scroll a full catalogue to find
+              that out. It is a row of links to real pages, not a filter — each
+              one carries its own copy, canonical and metadata.
+            */}
+            {regions.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Browse by region
+                </h3>
+
+                <ul className="mt-3 flex flex-wrap gap-3">
+                  {regions.map((region) => (
+                    <li key={region.slug}>
+                      <Link
+                        href={`/${destination.slug}/${activity.slug}/region/${region.slug}`}
+                        className="inline-flex items-baseline gap-2 rounded-full border border-hairline bg-white px-5 py-2.5 text-sm font-semibold transition-colors hover:border-ink"
+                      >
+                        {region.name}
+                        <span className="font-mono text-xs text-muted tabular">
+                          {region.tripCount}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {trips.length > 0 ? (
               <>

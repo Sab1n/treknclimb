@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
+
+import { noMojibakePlugin } from './shared/noMojibake';
 import { PublishStatus, PUBLISH_STATUSES } from './shared/status';
 
 /**
@@ -152,6 +154,13 @@ TeamMemberSchema.pre('findOneAndUpdate', async function () {
     );
   }
 });
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+TeamMemberSchema.plugin(noMojibakePlugin);
 
 const TeamMember: Model<ITeamMember> =
   mongoose.models.TeamMember ||

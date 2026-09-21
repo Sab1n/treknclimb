@@ -201,7 +201,8 @@ export function toTripEditorValues(trip: ITrip): TripEditorValues {
     durationDays: numeric(trip.durationDays),
     difficulty: text(trip.difficulty),
     bestMonths: [...(trip.bestMonths ?? [])],
-    region: text(trip.region),
+    // An ObjectId or null, flattened to the id string the <select> holds.
+    region: trip.region ? String(trip.region) : '',
     maxAltitudeM: numeric(trip.maxAltitudeM),
     peakName: text(trip.peakName),
     tripGrade: text(trip.tripGrade),

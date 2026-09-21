@@ -27,6 +27,13 @@ export const RESERVED_SLUGS = [
   // would build a page at /blog/category that the archive route wins, and the
   // post would silently never serve.
   'category',
+  // The third of the same shape. /<destination>/<activity>/region/<region> puts
+  // a static 'region' segment beside the dynamic [trip] one, so a trip slugged
+  // 'region' sits at /nepal/trekking/region — the path the region subtree
+  // occupies. Reserved rather than reasoned about: which of the two Next picks
+  // for a path with no page of its own is a resolution detail, and a slug whose
+  // fate depends on one is a slug nobody should be allowed to choose.
+  'region',
   'about',
   'contact',
   'faq',

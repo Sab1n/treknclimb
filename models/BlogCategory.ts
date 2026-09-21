@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
+
+import { noMojibakePlugin } from './shared/noMojibake';
 import { ISeoFields, seoFields } from './shared/seo';
 import { reservedSlugValidator } from './shared/reservedSlugs';
 
@@ -40,6 +42,13 @@ const BlogCategorySchema = new Schema<IBlogCategory>(
 );
 
 BlogCategorySchema.index({ slugHistory: 1 });
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+BlogCategorySchema.plugin(noMojibakePlugin);
 
 const BlogCategory: Model<IBlogCategory> =
   mongoose.models.BlogCategory ||

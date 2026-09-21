@@ -4,6 +4,7 @@ import type { Model } from 'mongoose';
 import { requireAdmin } from '../../../../../lib/adminAuth';
 import { connectDB } from '../../../../../lib/db';
 import Trip from '../../../../../models/Trip';
+import Region from '../../../../../models/Region';
 import Activity from '../../../../../models/Activity';
 import Destination from '../../../../../models/Destination';
 import Testimonial from '../../../../../models/Testimonial';
@@ -79,6 +80,7 @@ const MODELS: Record<UploadCollection, Model<any>> = {
   testimonials: Testimonial,
   team: TeamMember,
   blog: BlogPost,
+  regions: Region,
 };
 
 export async function POST(request: Request) {

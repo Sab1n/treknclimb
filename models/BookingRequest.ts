@@ -71,6 +71,24 @@ export interface IBookingRequest {
    * expected case, not missing data.
    */
   trip: Types.ObjectId | null;
+  /**
+   * The trip's title **as it was when the inquiry was submitted**.
+   *
+   * A snapshot, not a convenience. `trip` is a reference, and a reference can
+   * stop resolving: a draft trip that is deleted leaves `populate('trip')`
+   * returning null, and every admin screen then shows the inquiry as a
+   * "General inquiry" — an inquiry that says nothing about what was asked. The
+   * customer is still waiting for an answer about a specific trek.
+   *
+   * It also survives a rename honestly. If the trip is retitled next season,
+   * this still records what the visitor actually clicked, which is what an
+   * inquiry thread six months old needs to say.
+   *
+   * Optional because a general inquiry names no trip, and because inquiries
+   * taken before this field existed have none — the admin falls back through
+   * `trip?.title` → `tripTitle` → "General inquiry".
+   */
+  tripTitle?: string;
   preferredDate?: Date;
   travellers: number;
   message?: string;
@@ -134,6 +152,7 @@ const BookingRequestSchema = new Schema<IBookingRequest>(
     nationality: { type: String, required: true, trim: true, index: true },
 
     trip: { type: Schema.Types.ObjectId, ref: 'Trip', default: null, index: true },
+    tripTitle: { type: String, trim: true },
     preferredDate: { type: Date },
     travellers: { type: Number, required: true, min: 1 },
     message: { type: String },

@@ -27,6 +27,7 @@ import {
 } from '../../../../lib/adminFilters';
 import { formatDateTime, formatDate } from '../../../../lib/adminTime';
 import { BOOKING_STATUSES } from '../../../../models/BookingRequest';
+import { bookingTripTitle, bookingTripIsDeleted, GENERAL_INQUIRY } from '../../../../lib/bookingTrip';
 
 /**
  * The booking inquiry list — the screen staff live in.
@@ -189,6 +190,21 @@ export default async function AdminInquiriesPage({
         )}
 
         {/*
+          The dates arrived the wrong way round and the server swapped them.
+
+          Said out loud rather than handled quietly: an inverted range matches
+          nothing, which looks exactly like a genuinely quiet week, and the
+          inputs would still show what was typed. Silently correcting it would
+          swap one confusing table for another.
+        */}
+        {filters.datesSwapped && (
+          <p role="status" className="w-full text-sm text-muted">
+            The end date was before the start date, so they have been swapped.
+            Showing {filters.fromInput} to {filters.toInput}.
+          </p>
+        )}
+
+        {/*
           Both date bounds are inclusive and are read in Nepal time, so an
           inquiry that arrived at 23:00 in Pokhara falls on the day the admin
           sees on screen rather than on the next one in UTC.
@@ -281,8 +297,16 @@ export default async function AdminInquiriesPage({
                   <td className="px-4 py-3">{booking.nationality}</td>
 
                   <td className="px-4 py-3 text-muted">
-                    {/* Null is a real value here: an inquiry naming no trip. */}
-                    {booking.trip?.title ?? 'General inquiry'}
+                    {/*
+                      Falls through the live reference, then the snapshot taken
+                      at submission, then "General inquiry" — which is a real
+                      value here, not missing data. A deleted trip must not turn
+                      a specific inquiry into a general one.
+                    */}
+                    {bookingTripTitle(booking) ?? GENERAL_INQUIRY}
+                    {bookingTripIsDeleted(booking) && (
+                      <span className="block text-xs">(trip deleted)</span>
+                    )}
                   </td>
 
                   <td className="px-4 py-3 text-right font-mono tabular">

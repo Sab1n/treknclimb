@@ -5,7 +5,7 @@ import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
  *
  * ## This module must stay edge-safe
  *
- * `middleware.ts` runs on the Edge runtime, where there is no Node `crypto`,
+ * `proxy.ts` runs on the Edge runtime, where there is no Node `crypto`,
  * no filesystem and no TCP — so no Mongoose and no bcrypt. **Nothing in this
  * file may import either, directly or transitively**, or the middleware stops
  * building. That is why signing and verification live here on their own and the

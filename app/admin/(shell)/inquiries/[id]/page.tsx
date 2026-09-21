@@ -13,6 +13,10 @@ import {
   CONSENT_STATEMENT,
   CONSENT_STATEMENT_SINCE,
 } from '../../../../../lib/consent';
+import {
+  bookingTripTitle,
+  bookingTripIsDeleted,
+} from '../../../../../lib/bookingTrip';
 
 /**
  * One inquiry, in full.
@@ -152,8 +156,22 @@ export default async function AdminInquiryPage({
               </DetailRow>
 
               <DetailRow label="Trip">
-                {booking.trip ? (
-                  booking.trip.title
+                {bookingTripTitle(booking) ? (
+                  <>
+                    {bookingTripTitle(booking)}
+                    {bookingTripIsDeleted(booking) && (
+                      /*
+                        The name is kept but flagged. Rendering a deleted trip's
+                        name as though it were live sends staff looking for a
+                        page that 404s; dropping it loses what the customer
+                        actually asked about.
+                      */
+                      <span className="block text-sm text-muted">
+                        Recorded at the time of the inquiry. This trip has since
+                        been deleted.
+                      </span>
+                    )}
+                  </>
                 ) : (
                   <span className="text-muted">
                     General inquiry — no specific trip named

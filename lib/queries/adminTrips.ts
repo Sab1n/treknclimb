@@ -2,6 +2,7 @@ import { connectDB } from '../db';
 import Trip, { ITrip, ITripPopulated } from '../../models/Trip';
 import Destination, { IDestination } from '../../models/Destination';
 import Activity, { IActivity } from '../../models/Activity';
+import Region from '../../models/Region';
 
 /**
  * Trip reads for the admin.
@@ -108,6 +109,43 @@ export async function getActivityOptions(): Promise<ActivityOption[]> {
     name: activity.name,
     slug: activity.slug,
     destinationId: String(activity.destination),
+  }));
+}
+
+export interface RegionOption {
+  id: string;
+  name: string;
+  slug: string;
+  destinationId: string;
+}
+
+/**
+ * Every region, with its destination id.
+ *
+ * All of them, for the same reason as the activities: changing the destination
+ * select has to repopulate the region select without a round trip, and there
+ * are four regions in total.
+ *
+ * Filtered **by destination, not by activity**, because that is what a region
+ * belongs to. A region is offered on any trip in its destination regardless of
+ * the trip's activity — which is the whole point. Restricting the list to
+ * "activities that already have regions" would make the second activity to get
+ * one impossible to file, and it would do it silently.
+ */
+export async function getRegionOptions(): Promise<RegionOption[]> {
+  await connectDB();
+
+  const regions = await Region.find()
+    .sort({ displayOrder: 1, name: 1 })
+    .select('name slug destination')
+    .lean<{ _id: unknown; name: string; slug: string; destination: unknown }[]>()
+    .exec();
+
+  return regions.map((region) => ({
+    id: String(region._id),
+    name: region.name,
+    slug: region.slug,
+    destinationId: String(region.destination),
   }));
 }
 

@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 /**
  * The one admin page outside the guard — see `PUBLIC_ADMIN_PATHS` in
- * `middleware.ts`. It has to be, or there is no way to obtain a session.
+ * `proxy.ts`. It has to be, or there is no way to obtain a session.
  *
  * No Header or Footer. This is a tool, not a page of the website, and the site
  * chrome would put a "Get a quote" CTA and a newsletter signup around a

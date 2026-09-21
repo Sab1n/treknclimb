@@ -1,5 +1,5 @@
-import { ITripPopulated } from '../models/Trip';
 import { IActivity } from '../models/Activity';
+import { IRegion } from '../models/Region';
 import { IDestination } from '../models/Destination';
 import { IBlogPost } from '../models/BlogPost';
 import { IBlogCategory } from '../models/BlogCategory';
@@ -26,11 +26,27 @@ export function activityPath(
 }
 
 /**
- * Takes a populated trip, because the URL needs the destination and activity
- * *slugs* — an unpopulated `ITrip` only carries their ObjectIds, so the
- * compiler will stop you calling this with one.
+ * Takes anything carrying the three slugs the URL is built from.
+ *
+ * It still refuses an unpopulated `ITrip`: there, `destination` is a
+ * `Types.ObjectId`, which has no `slug`, so the call does not compile. That
+ * was the point of typing the parameter as `ITripPopulated` and it survives —
+ * but the narrower shape also accepts a *projection*, which is what the
+ * sitemap needs. It reads every published trip and wants four fields, not
+ * whole documents, and `.select('slug destination activity')` cannot satisfy
+ * `ITripPopulated`.
+ *
+ * `Pick<T, K>` is the counterpart of the `Omit` used on `ITripPopulated`:
+ * `Omit` drops the named keys, `Pick` keeps only them. So
+ * `Pick<IDestination, 'slug'>` is "an object with a `slug: string` and
+ * nothing else required" — and because TypeScript is structural, a full
+ * `IDestination` satisfies it. Every existing caller is unaffected.
  */
-export function tripPath(trip: ITripPopulated): string {
+export function tripPath(trip: {
+  slug: string;
+  destination: Pick<IDestination, 'slug'>;
+  activity: Pick<IActivity, 'slug'> | null;
+}): string {
   const segments = [trip.destination.slug];
 
   if (trip.activity) segments.push(trip.activity.slug);
@@ -57,6 +73,29 @@ export function blogCategoryPath(
   category: Pick<IBlogCategory, 'slug'>
 ): string {
   return `/blog/category/${category.slug}`;
+}
+
+/**
+ * A region listing — `/nepal/trekking/region/everest`.
+ *
+ * **The static `region` segment is load-bearing, not decoration.** Without it
+ * the route would be `/nepal/trekking/[region]`, which is the same depth as
+ * `/nepal/trekking/[trip]` — so region slugs and trip slugs would share one
+ * namespace, and a region called `everest-base-camp` would collide with the
+ * trek of that name. The extra segment separates them by construction rather
+ * than by a uniqueness rule spanning two collections that nothing enforces.
+ *
+ * Takes the activity as well as the region because a region belongs to a
+ * *destination* while the page is rendered *under an activity*: the same
+ * Everest region has a trekking page and, once a peak climb is filed there, a
+ * peak-climbing one. They are different pages listing different trips.
+ */
+export function regionPath(
+  region: Pick<IRegion, 'slug'>,
+  activity: Pick<IActivity, 'slug'>,
+  destination: Pick<IDestination, 'slug'>
+): string {
+  return `/${destination.slug}/${activity.slug}/region/${region.slug}`;
 }
 
 /**
@@ -90,6 +129,7 @@ export function activitiesListingPath(
 export function filteredTripsPath(filters: {
   destination?: string;
   activity?: string;
+  region?: string;
   duration?: string;
   difficulty?: string;
   price?: string;

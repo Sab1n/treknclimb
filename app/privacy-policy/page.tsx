@@ -6,6 +6,7 @@ import LegalDocument, {
   type LegalSection,
 } from '../../components/content/LegalDocument';
 import { getSiteSettings } from '../../lib/queries/settings';
+import { formatLegalDate } from '../../lib/legalPages';
 import {
   CONSENT_STATEMENT,
   CONSENT_STATEMENT_SINCE,
@@ -30,8 +31,13 @@ const SITE_URL = 'https://treknclimb.com';
  * person currently has to keep.
  */
 
-/** Update whenever the text below changes. Shown to visitors as the version. */
-const LAST_UPDATED = '10 September 2026';
+/**
+ * Shown to visitors as the version of the document they are reading.
+ *
+ * The date itself lives in `lib/legalPages.ts`, because the sitemap needs the
+ * same value as a `Date` and a second copy here would drift from it.
+ */
+const LAST_UPDATED = formatLegalDate('/privacy-policy');
 
 export const revalidate = 3600;
 

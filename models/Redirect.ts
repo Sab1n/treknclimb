@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
+
+import { noMojibakePlugin } from './shared/noMojibake';
 import { REDIRECT_TYPES, type RedirectType } from './shared/redirectTypes';
 
 /**
@@ -61,6 +63,13 @@ const RedirectSchema = new Schema<IRedirect>(
   },
   { timestamps: true }
 );
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+RedirectSchema.plugin(noMojibakePlugin);
 
 const Redirect: Model<IRedirect> =
   mongoose.models.Redirect ||

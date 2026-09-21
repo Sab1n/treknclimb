@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
+
+import { noMojibakePlugin } from './shared/noMojibake';
 import { ISeoFields, seoFields } from './shared/seo';
 import { reservedSlugValidator } from './shared/reservedSlugs';
 import {
@@ -117,6 +119,13 @@ const DestinationSchema = new Schema<IDestination>(
 
 // The 301 catch-all looks up retired slugs.
 DestinationSchema.index({ slugHistory: 1 });
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+DestinationSchema.plugin(noMojibakePlugin);
 
 const Destination: Model<IDestination> =
   mongoose.models.Destination ||

@@ -15,6 +15,7 @@ import type {
 } from '../../components/content/TripFilters';
 
 import { getAllPublishedTrips } from '../../lib/queries/trips';
+import { getRegionLookup } from '../../lib/queries/regions';
 import { toTripFilterMeta } from '../../types/dto';
 import { tripPath } from '../../lib/urls';
 import { TRIP_DIFFICULTIES } from '../../models/Trip';
@@ -67,12 +68,21 @@ export const metadata: Metadata = {
 };
 
 export default async function TripsPage() {
-  const trips = await getAllPublishedTrips();
+  const [trips, regionLookup] = await Promise.all([
+    getAllPublishedTrips(),
+    getRegionLookup(),
+  ]);
+
+  const regionSlugById = new Map(
+    [...regionLookup].map(([id, region]) => [id, region.slug])
+  );
 
   /* ---------------- facets, counted from the real catalogue ---------------- */
 
   const destinationCounts = new Map<string, FacetOption>();
   const activityCounts = new Map<string, Map<string, FacetOption>>();
+  // Keyed by activity slug — a region narrows a listing only within one.
+  const regionCounts = new Map<string, Map<string, FacetOption>>();
   const difficultyCounts = new Map<string, number>();
 
   for (const trip of trips) {
@@ -108,6 +118,39 @@ export default async function TripsPage() {
           count: 1,
         });
       }
+
+      /*
+       * Region facets hang off the activity. Counted here, inside the activity
+       * branch, because a region option is only ever offered once an activity
+       * is selected — and because a trip with no activity has no region page to
+       * be filtered towards.
+       *
+       * Nothing checks which activity this is. Regions are trekking-only today
+       * because that is what the trips say; file a peak climb under a region
+       * and its facet appears here with no code change.
+       */
+      const region = trip.region
+        ? regionLookup.get(String(trip.region))
+        : undefined;
+
+      if (region) {
+        if (!regionCounts.has(trip.activity.slug)) {
+          regionCounts.set(trip.activity.slug, new Map());
+        }
+
+        const regionGroup = regionCounts.get(trip.activity.slug)!;
+        const currentRegion = regionGroup.get(region.slug);
+
+        if (currentRegion) {
+          currentRegion.count += 1;
+        } else {
+          regionGroup.set(region.slug, {
+            value: region.slug,
+            label: region.name,
+            count: 1,
+          });
+        }
+      }
     }
 
     if (trip.difficulty) {
@@ -122,6 +165,12 @@ export default async function TripsPage() {
     destinations: [...destinationCounts.values()],
     activitiesByDestination: Object.fromEntries(
       [...activityCounts.entries()].map(([slug, group]) => [
+        slug,
+        [...group.values()],
+      ])
+    ),
+    regionsByActivity: Object.fromEntries(
+      [...regionCounts.entries()].map(([slug, group]) => [
         slug,
         [...group.values()],
       ])
@@ -143,7 +192,7 @@ export default async function TripsPage() {
    * filters read. TripCard stays a Server Component.
    */
   const items: TripListItem[] = trips.map((trip) => ({
-    meta: toTripFilterMeta(trip),
+    meta: toTripFilterMeta(trip, regionSlugById),
     card: <TripCard trip={trip} />,
   }));
 

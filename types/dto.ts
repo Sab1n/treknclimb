@@ -121,12 +121,30 @@ export function toElevationPoints(trip: ITripPopulated): ElevationPointDTO[] {
  * Server Component, rendered on the server and handed across as a React node,
  * so none of its Cloudinary work reaches the browser.
  */
-export function toTripFilterMeta(trip: ITripPopulated): TripFilterMeta {
+export function toTripFilterMeta(
+  trip: ITripPopulated,
+  /**
+   * Region slugs keyed by stringified region id.
+   *
+   * Passed in rather than populated on the trip, deliberately. Adding `region`
+   * to `ITripPopulated` would make that interface's promise false at every
+   * other `.populate()` site that does not ask for it — and `.lean<T>()` is an
+   * assertion, not a check, so nothing would catch it until a page threw.
+   * The filters need one string, and one small lookup buys it without making
+   * four other queries carry a join they have no use for.
+   *
+   * Defaults to empty so a caller with no regions in play is unaffected.
+   */
+  regionSlugById: ReadonlyMap<string, string> = new Map()
+): TripFilterMeta {
   return {
     id: String(trip._id),
     title: trip.title,
     destinationSlug: trip.destination.slug,
     activitySlug: trip.activity ? trip.activity.slug : null,
+    regionSlug: trip.region
+      ? (regionSlugById.get(String(trip.region)) ?? null)
+      : null,
     durationDays: trip.durationDays,
     difficulty: trip.difficulty ?? null,
     price: trip.price,

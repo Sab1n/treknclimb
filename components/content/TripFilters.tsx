@@ -4,6 +4,7 @@ import {
   DURATION_BUCKETS,
   PRICE_BUCKETS,
   FILTER_KEYS,
+  EMPTY_FILTERS,
   type TripFilterState,
   type FilterKey,
 } from '../../lib/tripFilters';
@@ -18,6 +19,15 @@ export interface TripFacets {
   destinations: FacetOption[];
   /** Keyed by destination slug — only destinations with an activity layer appear. */
   activitiesByDestination: Record<string, FacetOption[]>;
+  /**
+   * Keyed by **activity** slug, not destination.
+   *
+   * A region belongs to a destination, but a region only narrows a listing
+   * within an activity — the Everest region holds both treks and peak climbs,
+   * and offering "Everest" before an activity is chosen would mix them. Activity
+   * slugs are unique across the collection, so one flat key is unambiguous.
+   */
+  regionsByActivity: Record<string, FacetOption[]>;
   difficulties: FacetOption[];
 }
 
@@ -46,14 +56,35 @@ export default function TripFilters({
     ? facets.activitiesByDestination[filters.destination]
     : undefined;
 
+  /*
+   * Regions appear only once an activity is chosen, for the same reason the
+   * activity group waits for a destination: the options below it are
+   * meaningless without it, and an activity with no regions simply has no entry
+   * here rather than an empty group. Nothing tests the activity's *name* — an
+   * activity has regions when its trips do.
+   */
+  const regionOptions = filters.activity
+    ? facets.regionsByActivity[filters.activity]
+    : undefined;
+
   const activeCount = FILTER_KEYS.filter((key) => filters[key] !== null).length;
 
   function set(key: FilterKey, value: string | null) {
     const next = { ...filters, [key]: value };
 
-    // Changing destination invalidates any activity choice underneath it —
-    // /trips?destination=india&activity=trekking would return nothing forever.
-    if (key === 'destination') next.activity = null;
+    /*
+     * Changing a level invalidates everything below it.
+     * /trips?destination=india&activity=trekking returns nothing forever, and
+     * so does keeping ?region=everest after switching to peak climbing in a
+     * destination where that pairing has no trips. Clearing downward is the
+     * only way a filter UI stays honest about what it is offering.
+     */
+    if (key === 'destination') {
+      next.activity = null;
+      next.region = null;
+    }
+
+    if (key === 'activity') next.region = null;
 
     onChange(next);
   }
@@ -69,14 +100,7 @@ export default function TripFilters({
           <button
             type="button"
             onClick={() =>
-              onChange({
-                destination: null,
-                activity: null,
-                duration: null,
-                difficulty: null,
-                price: null,
-                sort: filters.sort,
-              })
+              onChange({ ...EMPTY_FILTERS, sort: filters.sort })
             }
             className="text-sm font-semibold underline underline-offset-4 hover:text-muted"
           >
@@ -99,6 +123,15 @@ export default function TripFilters({
           options={activityOptions}
           selected={filters.activity}
           onSelect={(value) => set('activity', value)}
+        />
+      )}
+
+      {regionOptions && regionOptions.length > 0 && (
+        <FilterGroup
+          legend="Region"
+          options={regionOptions}
+          selected={filters.region}
+          onSelect={(value) => set('region', value)}
         />
       )}
 

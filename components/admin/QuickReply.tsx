@@ -1,4 +1,5 @@
 import type { IBookingRequestPopulated } from '../../models/BookingRequest';
+import { bookingTripTitle } from '../../lib/bookingTrip';
 
 /**
  * Email and WhatsApp reply links, pre-filled.
@@ -64,7 +65,7 @@ export default function QuickReply({
   const emailBody =
     `Dear ${booking.name},\n\n` +
     `Thank you for your inquiry about ` +
-    `${booking.trip?.title ?? 'travelling with us'}.\n\n` +
+    `${bookingTripTitle(booking) ?? 'travelling with us'}.\n\n` +
     `\n\nWith best regards,\nTrek & Climb Adventure\nPokhara, Nepal` +
     quoted;
 
@@ -79,7 +80,7 @@ export default function QuickReply({
   const whatsappText =
     `Hello ${booking.name}, this is Trek & Climb Adventure in Pokhara. ` +
     `Thank you for your inquiry ${booking.reference}` +
-    `${booking.trip ? ` about the ${booking.trip.title}` : ''}.`;
+    `${bookingTripTitle(booking) ? ` about the ${bookingTripTitle(booking)}` : ''}.`;
 
   const whatsappHref = `https://wa.me/${digits}?text=${encodeURIComponent(whatsappText)}`;
 

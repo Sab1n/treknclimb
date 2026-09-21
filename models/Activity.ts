@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Types, UpdateQuery } from 'mongoose';
+
+import { noMojibakePlugin } from './shared/noMojibake';
 import Destination, { IDestination } from './Destination';
 import { ISeoFields, seoFields } from './shared/seo';
 import { reservedSlugValidator } from './shared/reservedSlugs';
@@ -152,6 +154,13 @@ ActivitySchema.pre('findOneAndUpdate', async function () {
 
   if (problem) throw new Error(problem);
 });
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+ActivitySchema.plugin(noMojibakePlugin);
 
 const Activity: Model<IActivity> =
   mongoose.models.Activity ||

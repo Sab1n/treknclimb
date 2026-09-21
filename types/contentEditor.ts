@@ -1,5 +1,6 @@
 import type { IDestination } from '../models/Destination';
 import type { IActivity } from '../models/Activity';
+import type { IRegion } from '../models/Region';
 import type { ITestimonial } from '../models/Testimonial';
 import type { IFaq } from '../models/Faq';
 import type { ITeamMember } from '../models/TeamMember';
@@ -127,6 +128,64 @@ export function toActivityValues(activity: IActivity): ActivityEditorValues {
     noIndex: !!activity.noIndex,
   };
 }
+
+/**
+ * A region, as the editor holds it.
+ *
+ * Every value is a string because that is what an input holds — `displayOrder`
+ * included. The form is the source of truth for its own state, and converting
+ * on the way in and out of it is where "0" and 0 and "" start disagreeing.
+ */
+export interface RegionEditorValues extends SeoEditorValues {
+  name: string;
+  slug: string;
+  destination: string;
+  description: string;
+  coverImage: string;
+  coverImageAlt: string;
+  displayOrder: string;
+}
+
+export function toRegionValues(region: IRegion): RegionEditorValues {
+  return {
+    name: text(region.name),
+    slug: text(region.slug),
+    destination: String(region.destination),
+    description: text(region.description),
+    coverImage: text(region.coverImage),
+    coverImageAlt: text(region.coverImageAlt),
+    displayOrder: numeric(region.displayOrder),
+
+    metaTitle: text(region.metaTitle),
+    metaDescription: text(region.metaDescription),
+    canonicalUrl: text(region.canonicalUrl),
+    ogTitle: text(region.ogTitle),
+    ogDescription: text(region.ogDescription),
+    ogImage: text(region.ogImage),
+    schemaType: text(region.schemaType),
+    noIndex: !!region.noIndex,
+  };
+}
+
+/** A blank region, for the create form. */
+export const emptyRegion: RegionEditorValues = {
+  name: '',
+  slug: '',
+  destination: '',
+  description: '',
+  coverImage: '',
+  coverImageAlt: '',
+  displayOrder: '0',
+
+  metaTitle: '',
+  metaDescription: '',
+  canonicalUrl: '',
+  ogTitle: '',
+  ogDescription: '',
+  ogImage: '',
+  schemaType: '',
+  noIndex: false,
+};
 
 /** A blank activity, for the create form. */
 export const emptyActivity: ActivityEditorValues = {

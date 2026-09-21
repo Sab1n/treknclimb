@@ -26,17 +26,21 @@ import '../../models/Trip';
  * renders fifty of them.
  */
 
-/** Which column the inquiry table is sorted by. */
-export const BOOKING_SORT_FIELDS = [
-  'createdAt',
-  'name',
-  'nationality',
-  'travellers',
-  'preferredDate',
-  'status',
-] as const;
+/*
+ * Re-exported, not declared here. The vocabulary lives in
+ * `models/shared/bookingSort.ts` so that code needing only the list of valid
+ * sort fields does not import this module — and with it `lib/db`, which throws
+ * at import time without a `MONGODB_URI`. Existing imports are unaffected.
+ *
+ * Imported as well as re-exported, because `BookingListOptions` below refers
+ * to the type: a bare `export ... from` forwards it without binding it locally.
+ */
+import type { BookingSortField } from '../../models/shared/bookingSort';
 
-export type BookingSortField = (typeof BOOKING_SORT_FIELDS)[number];
+export {
+  BOOKING_SORT_FIELDS,
+  type BookingSortField,
+} from '../../models/shared/bookingSort';
 
 export interface BookingListOptions {
   status?: BookingStatus;

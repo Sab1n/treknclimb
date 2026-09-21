@@ -154,6 +154,36 @@ export const adminActivitySchema = z.object({
 export type AdminActivityInput = z.input<typeof adminActivitySchema>;
 
 /**
+ * The region editor, used by both create and save.
+ *
+ * Shaped like the activity schema minus `suitability`. `destination` is
+ * accepted and **not restricted to destinations with an activity layer**: a
+ * region is a place, India has real ones, and what such a record lacks is a
+ * URL rather than a right to exist. The model takes the same position.
+ *
+ * `description` allows 4000 characters because it is the editorial body of the
+ * region page rather than a card blurb — it goes through the Markdown-subset
+ * parser, so it carries headings and paragraphs.
+ */
+export const adminRegionSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120),
+  slug: contentSlugSchema,
+  destination: z.string().trim().min(1, 'Choose a destination'),
+  description: z.string().trim().min(1, 'Description is required').max(4000),
+  coverImage: z.string().trim().min(1, 'A cover image is required').max(300),
+  coverImageAlt: z
+    .string()
+    .trim()
+    .min(1, 'The cover image needs alt text')
+    .max(300),
+  displayOrder: displayOrderSchema,
+
+  ...seoFields,
+});
+
+export type AdminRegionInput = z.input<typeof adminRegionSchema>;
+
+/**
  * An optional ObjectId reference arriving from a select.
  *
  * `''` is what the "None" option submits, and it has to become `null` rather

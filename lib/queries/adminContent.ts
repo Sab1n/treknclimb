@@ -1,6 +1,7 @@
 import { connectDB } from '../db';
 import Destination, { IDestination } from '../../models/Destination';
 import Activity, { IActivity, IActivityPopulated } from '../../models/Activity';
+import Region, { IRegion, IRegionPopulated } from '../../models/Region';
 import Trip from '../../models/Trip';
 import Testimonial, {
   ITestimonial,
@@ -66,6 +67,113 @@ export async function getActivitiesForAdmin(): Promise<IActivityPopulated[]> {
     .populate('destination', 'name slug hasActivities')
     .lean<IActivityPopulated[]>()
     .exec();
+}
+
+/**
+ * Every region, with its destination populated, for the admin list.
+ *
+ * Ordered the way the public pages order them, so the list reads the same way
+ * the site does.
+ */
+export async function getRegionsForAdmin(): Promise<IRegionPopulated[]> {
+  await connectDB();
+
+  return Region.find()
+    .sort({ displayOrder: 1, name: 1 })
+    .populate('destination')
+    .lean<IRegionPopulated[]>()
+    .exec();
+}
+
+export async function getRegionForEdit(id: string): Promise<IRegion | null> {
+  await connectDB();
+
+  try {
+    return await Region.findById(id).lean<IRegion>().exec();
+  } catch {
+    // A malformed id is a 404, not a 500.
+    return null;
+  }
+}
+
+/**
+ * How many trips are filed under a region.
+ *
+ * The delete guard, and the "renaming moves N pages" line on the form.
+ * Counts **every** trip, not just published ones: a draft still holds the
+ * reference, and deleting the region would leave it pointing at nothing the
+ * next time someone opens it.
+ */
+export async function countTripsForRegion(regionId: string): Promise<number> {
+  await connectDB();
+
+  try {
+    return await Trip.countDocuments({ region: regionId });
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * The pages a region currently renders on — one per activity with published
+ * trips in it.
+ *
+ * Read rather than assembled from a list of activity slugs, for the reason
+ * stated everywhere else regions are touched: which activities have regions is
+ * decided by the trips, and a hardcoded answer stops being true the first time
+ * that changes.
+ */
+export async function getRegionLivePaths(regionId: string): Promise<string[]> {
+  await connectDB();
+
+  try {
+    const trips = await Trip.find({ region: regionId, status: 'published' })
+      .select('destination activity')
+      .populate('destination', 'slug')
+      .populate('activity', 'slug')
+      .lean<
+        {
+          destination: { slug: string } | null;
+          activity: { slug: string } | null;
+        }[]
+      >()
+      .exec();
+
+    const region = await Region.findById(regionId).select('slug').lean<{ slug: string }>();
+
+    if (!region) return [];
+
+    const paths = new Set<string>();
+
+    for (const trip of trips) {
+      if (!trip.destination || !trip.activity) continue;
+
+      paths.add(
+        `/${trip.destination.slug}/${trip.activity.slug}/region/${region.slug}`
+      );
+    }
+
+    return [...paths].sort();
+  } catch {
+    return [];
+  }
+}
+
+/** Slugs are unique per collection, so a region only collides with a region. */
+export async function isRegionSlugTaken(
+  slug: string,
+  excludeId?: string
+): Promise<boolean> {
+  await connectDB();
+
+  const existing = await Region.findOne({ slug: slug.toLowerCase().trim() })
+    .select('_id')
+    .lean<{ _id: unknown }>()
+    .exec();
+
+  if (!existing) return false;
+
+  return !excludeId || String(existing._id) !== excludeId;
 }
 
 export async function getActivityForEdit(id: string): Promise<IActivity | null> {

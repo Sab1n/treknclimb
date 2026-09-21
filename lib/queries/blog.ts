@@ -31,7 +31,12 @@ import '../../models/Activity';
  * structured data.
  */
 
-const PUBLISHED = { status: 'published', publishedAt: { $ne: null } } as const;
+/**
+ * Exported so `lib/queries/sitemap.ts` filters on the same two conditions the
+ * pages do. A sitemap listing a post the page refuses to render is a 404 a
+ * crawler was invited to.
+ */
+export const PUBLISHED = { status: 'published', publishedAt: { $ne: null } } as const;
 
 /**
  * One post by slug, with its category and its related trips fully populated.

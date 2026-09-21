@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Types } from 'mongoose';
+
+import { noMojibakePlugin } from './shared/noMojibake';
 import { ITrip } from './Trip';
 import { PublishStatus, PUBLISH_STATUSES } from './shared/status';
 
@@ -123,6 +125,13 @@ TestimonialSchema.pre('findOneAndUpdate', async function () {
     );
   }
 });
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+TestimonialSchema.plugin(noMojibakePlugin);
 
 const Testimonial: Model<ITestimonial> =
   mongoose.models.Testimonial ||

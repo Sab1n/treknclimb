@@ -78,6 +78,7 @@ export const UPLOAD_COLLECTIONS = [
   'testimonials',
   'team',
   'blog',
+  'regions',
 ] as const;
 
 export type UploadCollection = (typeof UPLOAD_COLLECTIONS)[number];

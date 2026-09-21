@@ -1,4 +1,6 @@
 import mongoose, { Schema, Model, Types, UpdateQuery } from 'mongoose';
+
+import { noMojibakePlugin } from './shared/noMojibake';
 import Destination, { IDestination } from './Destination';
 import { IActivity } from './Activity';
 import { ISeoFields, seoFields } from './shared/seo';
@@ -133,7 +135,20 @@ export interface ITrip extends ISeoFields {
   /** Optional editorial grade, distinct from the difficulty enum. */
   tripGrade?: string;
   maxAltitudeM?: number;
-  region?: string;
+  /**
+   * The geographic region — Everest, Annapurna, Langtang, Manaslu.
+   *
+   * `Types.ObjectId | null`, never `region?: ...`, for the same reason
+   * `activity` is: the key is always present and **null is a real, meaningful
+   * value** rather than missing data. Most trips genuinely have no region —
+   * India and Bhutan have no region pages, and a city tour is not in a trekking
+   * region at all — so `?` would scatter `undefined` checks through code that
+   * has to handle "no region" as an ordinary case either way.
+   *
+   * It was free text (`region?: string`) until regions became a collection. See
+   * `scripts/migrate-trip-region-ref.ts`.
+   */
+  region: Types.ObjectId | null;
   peakName?: string;
   minGroupSize: number;
   maxGroupSize: number;
@@ -346,7 +361,18 @@ const TripSchema = new Schema<ITrip>(
     hasElevationProfile: { type: Boolean, default: false },
     tripGrade: { type: String, trim: true },
     maxAltitudeM: { type: Number, min: 0 },
-    region: { type: String, trim: true },
+    /*
+     * `default: null` rather than no default, so the key exists on every
+     * document. A ref that is sometimes absent and sometimes null is two shapes
+     * for one meaning, and the query `{ region: null }` matches both only by
+     * accident of how MongoDB treats missing keys.
+     */
+    region: {
+      type: Schema.Types.ObjectId,
+      ref: 'Region',
+      default: null,
+      index: true,
+    },
     peakName: { type: String, trim: true },
     minGroupSize: { type: Number, default: 1, min: 1 },
     maxGroupSize: { type: Number, default: 12, min: 1 },
@@ -503,6 +529,13 @@ TripSchema.path('groupPricing').validate(function (tiers: IGroupPriceTier[]) {
 
   return true;
 }, 'Group pricing tiers must not overlap, and minPeople cannot exceed maxPeople.');
+
+/*
+ * Rejects U+FFFD on every string path, including the embedded
+ * subdocuments. See models/shared/noMojibake.ts — the character only ever
+ * means a decode failed upstream, so there is no legitimate value to lose.
+ */
+TripSchema.plugin(noMojibakePlugin);
 
 const Trip: Model<ITrip> =
   mongoose.models.Trip || mongoose.model<ITrip>('Trip', TripSchema);
