@@ -6,6 +6,8 @@ import AffiliationStrip from '../../components/layout/AffiliationStrip';
 import Breadcrumbs from '../../components/ui/Breadcrumbs';
 import BookingForm, { type TripOption } from '../../components/forms/BookingForm';
 import { getAllPublishedTrips } from '../../lib/queries/trips';
+import { toBookingRail } from '../../types/dto';
+import { nepalToday } from '../../lib/departures';
 
 const SITE_URL = 'https://treknclimb.com';
 
@@ -21,9 +23,21 @@ export const metadata: Metadata = {
 export default async function ContactPage() {
   const trips = await getAllPublishedTrips();
 
+  /*
+   * Each trip carries its booking rail — seasons, length, private price,
+   * blackouts — so the form can show and change a departure without a
+   * request. Generated here with the page, so the trip save route purges
+   * /contact as well: a stale page would offer dates the office has closed.
+   * The form re-checks against the browser's date, and the booking route
+   * checks again at submission, so a stale page can mislead but never lose
+   * an inquiry.
+   */
+  const today = nepalToday();
+
   const options: TripOption[] = trips.map((trip) => ({
     slug: trip.slug,
     title: trip.title,
+    rail: toBookingRail(trip, today),
   }));
 
   const whatsapp = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
@@ -57,6 +71,7 @@ export default async function ContactPage() {
               <div className="min-w-0 max-w-2xl">
                 <BookingForm
                   trips={options}
+                  today={today}
                   turnstileSiteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
                   whatsappNumber={whatsapp}
                 />

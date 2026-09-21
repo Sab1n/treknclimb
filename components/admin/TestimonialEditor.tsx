@@ -17,6 +17,7 @@ import {
   NumberField,
   FieldRow,
 } from './fields';
+import { describeSaveFailure } from './saveFailure';
 
 /**
  * One testimonial, create and edit.
@@ -111,8 +112,10 @@ export default function TestimonialEditor({
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setErrors((result.fieldErrors ?? {}) as Record<string, string>);
-        setFormError(result.error ?? 'Could not save.');
+        const failure = describeSaveFailure(response.status, result);
+
+        setErrors(failure.fieldErrors);
+        setFormError(failure.message);
         return;
       }
 

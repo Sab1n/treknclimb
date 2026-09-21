@@ -14,6 +14,7 @@ import Testimonial from '../models/Testimonial';
 import TeamMember from '../models/TeamMember';
 import SiteSettings from '../models/SiteSettings';
 import Affiliation from '../models/Affiliation';
+import { purge } from './lib/purge';
 
 /**
  * Repairs U+FFFD (the Unicode replacement character) in stored content.
@@ -258,57 +259,6 @@ async function affectedPaths(
   }
 
   return [...paths];
-}
-
-/**
- * Asks the running site to purge them.
- *
- * `revalidatePath()` only works inside the Next runtime, and this is a plain
- * Node process — so the purge has to go over HTTP to `/api/revalidate`.
- *
- * A failure here is reported, never fatal. The data repair has already
- * succeeded and been verified at that point, and the cache catches up on the
- * next build or when each page's `revalidate` window lapses. Exiting non-zero
- * on an unreachable dev server would make a successful migration look failed.
- */
-async function purge(paths: string[]): Promise<void> {
-  const secret = process.env.REVALIDATE_SECRET;
-  const base = process.env.SITE_ORIGIN ?? 'http://localhost:3000';
-
-  if (!secret) {
-    console.log(
-      '\nREVALIDATE_SECRET is not set, so nothing was purged. The corrected ' +
-        'text is in Atlas; the pages above will pick it up on the next build.'
-    );
-    return;
-  }
-
-  try {
-    const response = await fetch(`${base}/api/revalidate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-revalidate-secret': secret,
-      },
-      body: JSON.stringify({ paths }),
-    });
-
-    if (response.ok) {
-      const result = (await response.json()) as { count: number };
-      console.log(`\nPurged ${result.count} path(s) via ${base}/api/revalidate.`);
-    } else {
-      console.log(
-        `\nPurge request returned ${response.status}. The data is repaired; ` +
-          'the pages will refresh on the next build.'
-      );
-    }
-  } catch {
-    console.log(
-      `\nNo server reachable at ${base}, so nothing was purged. The data is ` +
-        'repaired; the pages will refresh on the next build. Set SITE_ORIGIN ' +
-        'to point this at a running deployment.'
-    );
-  }
 }
 
 /* ------------------------------------------------------------------ *

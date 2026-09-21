@@ -154,6 +154,47 @@ export function NumberField({
   );
 }
 
+/**
+ * A calendar date, as the `YYYY-MM-DD` string `<input type="date">` holds.
+ *
+ * The native control rather than the shared `Calendar` component: in a row of
+ * an editor table, the browser's own picker is compact, keyboard-complete and
+ * familiar, and the value it produces is already the exact string the Zod
+ * schema parses. `Calendar` is for choosing *among* marked dates, which is not
+ * what an admin typing a departure is doing.
+ */
+export function DateField({
+  label,
+  id,
+  value,
+  onChange,
+  error,
+  hint,
+  required,
+}: {
+  label: string;
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+  hint?: ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <Wrapper label={label} id={id} error={error} hint={hint} required={required}>
+      <input
+        id={id}
+        type="date"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className={`${inputBase} ${borderFor(error)} font-mono tabular`}
+      />
+    </Wrapper>
+  );
+}
+
 export function TextAreaField({
   label,
   id,

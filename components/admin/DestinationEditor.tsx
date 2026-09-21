@@ -17,6 +17,7 @@ import {
   FieldRow,
 } from './fields';
 import RichTextEditor from './RichTextEditor';
+import { describeSaveFailure } from './saveFailure';
 
 /**
  * The destination editor.
@@ -121,8 +122,10 @@ export default function DestinationEditor({
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        setErrors((result.fieldErrors ?? {}) as Record<string, string>);
-        setFormError(result.error ?? 'Could not save.');
+        const failure = describeSaveFailure(response.status, result);
+
+        setErrors(failure.fieldErrors);
+        setFormError(failure.message);
         return;
       }
 

@@ -3,6 +3,7 @@ import BookingRequest, {
   IBookingRequestPopulated,
   BookingStatus,
 } from '../../models/BookingRequest';
+import type { TripType } from '../../models/shared/departures';
 
 /*
  * Side-effect import, same reason as `lib/queries/trips.ts`: `.populate('trip')`
@@ -24,7 +25,16 @@ import '../../models/Trip';
  * destination and activity. The admin list needs the trip's title, which is on
  * the trip document; a URL would need two more joins per row on a screen that
  * renders fifty of them.
+ *
+ * The populate does bring the trip's `departureSeasons` and `durationDays`:
+ * whether an inquiry's departure is *still* available is computed from them on
+ * every view (`bookingDepartureView`), never stored, so it cannot go stale.
+ * Seasons are small — a date range, a pattern, a price and a few exceptions —
+ * so this costs little even on a long list.
  */
+
+/** The trip fields every admin inquiry read populates. */
+const TRIP_FIELDS = 'title slug durationDays departureSeasons';
 
 /*
  * Re-exported, not declared here. The vocabulary lives in
@@ -44,6 +54,8 @@ export {
 
 export interface BookingListOptions {
   status?: BookingStatus;
+  /** Group or private. Inquiries with neither recorded never match a type. */
+  tripType?: TripType;
   /** Inclusive lower bound on `createdAt`. */
   from?: Date;
   /** Inclusive upper bound on `createdAt`. */
@@ -65,6 +77,7 @@ function buildFilter(options: BookingListOptions): Record<string, unknown> {
   const filter: Record<string, unknown> = {};
 
   if (options.status) filter.status = options.status;
+  if (options.tripType) filter.tripType = options.tripType;
 
   if (options.from || options.to) {
     const range: Record<string, Date> = {};
@@ -97,7 +110,7 @@ export async function getBookingRequests(
 
   const query = BookingRequest.find(buildFilter(options))
     .sort(sort)
-    .populate('trip', 'title slug');
+    .populate('trip', TRIP_FIELDS);
 
   if (options.limit) query.limit(options.limit);
 
@@ -129,7 +142,7 @@ export async function getBookingRequestById(
 
   try {
     return await BookingRequest.findById(id)
-      .populate('trip', 'title slug')
+      .populate('trip', TRIP_FIELDS)
       .lean<IBookingRequestPopulated>()
       .exec();
   } catch {

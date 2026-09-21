@@ -28,6 +28,11 @@ import {
 import { formatDateTime, formatDate } from '../../../../lib/adminTime';
 import { BOOKING_STATUSES } from '../../../../models/BookingRequest';
 import { bookingTripTitle, bookingTripIsDeleted, GENERAL_INQUIRY } from '../../../../lib/bookingTrip';
+import { TRIP_TYPES, TRIP_TYPE_LABELS } from '../../../../models/shared/departures';
+import { bookingDepartureView, formatDepartureRange } from '../../../../lib/bookingDeparture';
+import { nepalToday } from '../../../../lib/departures';
+import InquiryDateRange from '../../../../components/admin/InquiryDateRange';
+import DepartureNowBadge from '../../../../components/admin/DepartureNowBadge';
 
 /**
  * The booking inquiry list — the screen staff live in.
@@ -45,11 +50,20 @@ import { bookingTripTitle, bookingTripIsDeleted, GENERAL_INQUIRY } from '../../.
  * point at the same query string and be guaranteed to produce what is on
  * screen.
  *
- * ## The filter form needs no JavaScript
+ * ## The filter form is a plain GET form
  *
  * A plain `form method="get"` puts its fields in the query string on submit,
- * which is exactly the state this page reads back. No client component, no
- * change handler, no hydration.
+ * which is exactly the state this page reads back. The date range is picked on
+ * the shared calendar (`InquiryDateRange`), a Client Component — but it only
+ * writes two hidden inputs named `from` and `to`, so what the form submits
+ * and what the server parses are unchanged.
+ *
+ * ## Group or private, and whether the departure still stands
+ *
+ * The Trip column says which the visitor chose, and for a group inquiry the
+ * departure's dates and whether it can **still** be joined — computed from the
+ * trip's seasons on every load, never stored. "Offer another date" should be
+ * visible from the list, not only once an inquiry is opened.
  */
 export const metadata: Metadata = {
   title: 'Booking inquiries',
@@ -84,7 +98,11 @@ export default async function AdminInquiriesPage({
     getBookingStatusCounts(),
   ]);
 
-  const filtered = !!filters.status || !!filters.fromInput || !!filters.toInput;
+  const filtered =
+    !!filters.status || !!filters.tripType || !!filters.fromInput || !!filters.toInput;
+
+  // Pokhara's date, for "is this departure still available?" and the calendar.
+  const today = nepalToday();
 
   return (
     <div className="flex flex-col gap-8">
@@ -106,7 +124,7 @@ export default async function AdminInquiriesPage({
           label="Awaiting a reply"
           value={counts.Pending}
           note={counts.Pending > 0 ? 'Nobody has responded yet' : 'All caught up'}
-          href={inquiryHref(filters, { status: 'Pending', from: '', to: '' })}
+          href={inquiryHref(filters, { status: 'Pending', type: '', from: '', to: '' })}
         />
         <StatCard label="Contacted" value={counts.Contacted} />
         <StatCard label="Confirmed" value={counts.Confirmed} />
@@ -148,30 +166,38 @@ export default async function AdminInquiriesPage({
         </div>
 
         <div>
-          <label htmlFor="from" className="text-sm font-semibold">
-            Received from
+          <label htmlFor="type" className="text-sm font-semibold">
+            Trip type
           </label>
-          <input
-            id="from"
-            name="from"
-            type="date"
-            defaultValue={filters.fromInput}
+          <select
+            id="type"
+            name="type"
+            defaultValue={filters.tripType ?? ''}
             className="mt-1.5 block rounded border border-hairline bg-white px-3 py-2 text-sm"
-          />
+          >
+            {/*
+              General inquiries — no trip named — have no trip type, and so
+              appear only under "All".
+            */}
+            <option value="">All trip types</option>
+            {TRIP_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {TRIP_TYPE_LABELS[type]}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div>
-          <label htmlFor="to" className="text-sm font-semibold">
-            Received up to
-          </label>
-          <input
-            id="to"
-            name="to"
-            type="date"
-            defaultValue={filters.toInput}
-            className="mt-1.5 block rounded border border-hairline bg-white px-3 py-2 text-sm"
-          />
-        </div>
+        {/*
+          Keyed by the applied range, so submitting a new one remounts the
+          picker with it rather than keeping its previous local state.
+        */}
+        <InquiryDateRange
+          key={`${filters.fromInput}|${filters.toInput}`}
+          from={filters.fromInput}
+          to={filters.toInput}
+          today={today}
+        />
 
         <button
           type="submit"
@@ -242,10 +268,15 @@ export default async function AdminInquiriesPage({
                 label="People"
                 align="right"
               />
+              {/*
+                The departure's start for a group inquiry, the preferred date
+                for any other — the route stores both in `preferredDate` so
+                this column sorts the two together.
+              */}
               <SortableHeader
                 filters={filters}
                 field="preferredDate"
-                label="Preferred date"
+                label="Start date"
               />
               <SortableHeader filters={filters} field="status" label="Status" />
             </tr>
@@ -262,6 +293,7 @@ export default async function AdminInquiriesPage({
 
             {bookings.map((booking) => {
               const id = String(booking._id);
+              const departure = bookingDepartureView(booking, today);
 
               return (
                 <tr
@@ -306,6 +338,29 @@ export default async function AdminInquiriesPage({
                     {bookingTripTitle(booking) ?? GENERAL_INQUIRY}
                     {bookingTripIsDeleted(booking) && (
                       <span className="block text-xs">(trip deleted)</span>
+                    )}
+
+                    {booking.tripType && (
+                      <span className="mt-1 block text-xs text-ink">
+                        {TRIP_TYPE_LABELS[booking.tripType]}
+                        {departure && (
+                          <>
+                            {' · '}
+                            <span className="whitespace-nowrap font-mono tabular">
+                              {formatDepartureRange(
+                                departure.snapshot.startDate,
+                                departure.snapshot.endDate
+                              )}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    )}
+
+                    {departure && (
+                      <span className="mt-1 block">
+                        <DepartureNowBadge now={departure.now} />
+                      </span>
                     )}
                   </td>
 

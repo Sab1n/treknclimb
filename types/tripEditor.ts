@@ -1,4 +1,5 @@
 import type { ITrip } from '../models/Trip';
+import { toIsoDate } from '../lib/departures';
 
 /**
  * The serialized trip shape the editor works in.
@@ -46,6 +47,52 @@ export interface TierRow extends EditorRow {
   maxPeople: string;
   pricePerPerson: string;
   label: string;
+}
+
+/**
+ * A date that departs differently from the rest of its season.
+ *
+ * `status` is `''` for "runs as normal" — the editor's one empty value, which
+ * the server maps to null. An exception with an empty status must carry a
+ * price, or it does nothing and the save refuses it.
+ */
+export interface ExceptionRow extends EditorRow {
+  date: string;
+  /** `''`, `'full'` or `'closed'`. */
+  status: string;
+  /** `''` when the season's price applies. */
+  pricePerPerson: string;
+}
+
+/**
+ * A departure season row.
+ *
+ * `id` is separate from `key`, and here that matters. `key` is React's —
+ * every row has one, new rows included. `id` is the stored season's `_id`,
+ * empty on a season never saved, and the server uses it to **keep** that
+ * `_id` on save. A generated departure is identified by season id plus date,
+ * so a season that got a fresh id on every save would change the identity of
+ * every departure in it the first time anyone corrected its price.
+ *
+ * `weekdays` is `number[]` rather than strings because it is a set of
+ * checkboxes, not a text input — there is no half-typed state to preserve.
+ */
+export interface SeasonRow extends EditorRow {
+  id: string;
+  startDate: string;
+  endDate: string;
+  /** `'daily'` or `'weekdays'`. */
+  pattern: string;
+  weekdays: number[];
+  pricePerPerson: string;
+  exceptions: ExceptionRow[];
+}
+
+export interface BlackoutRow extends EditorRow {
+  id: string;
+  start: string;
+  end: string;
+  reason: string;
 }
 
 export interface ItineraryRow extends EditorRow {
@@ -105,6 +152,10 @@ export interface TripEditorValues {
   discountedPrice: string;
   priceLabel: string;
   groupPricing: TierRow[];
+
+  // --- departures ---
+  departureSeasons: SeasonRow[];
+  blackoutPeriods: BlackoutRow[];
 
   // --- content ---
   /*
@@ -226,6 +277,41 @@ export function toTripEditorValues(trip: ITrip): TripEditorValues {
       maxPeople: numeric(tier.maxPeople),
       pricePerPerson: numeric(tier.pricePerPerson),
       label: text(tier.label),
+    })),
+
+    /*
+     * Past seasons are included. The editor is where the record lives, and
+     * "hidden automatically" is a rule about the public page — an admin
+     * checking what ran last season, or which departure an old inquiry was
+     * about, has to be able to see it. The tab marks them as past instead.
+     *
+     * Exceptions are sorted by date so the list under a season reads in
+     * calendar order however they were entered.
+     */
+    departureSeasons: (trip.departureSeasons ?? []).map((season) => ({
+      key: season._id ? String(season._id) : newRowKey('season'),
+      id: season._id ? String(season._id) : '',
+      startDate: toIsoDate(new Date(season.startDate)),
+      endDate: toIsoDate(new Date(season.endDate)),
+      pattern: text(season.pattern),
+      weekdays: [...(season.weekdays ?? [])],
+      pricePerPerson: numeric(season.pricePerPerson),
+      exceptions: [...(season.exceptions ?? [])]
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+        .map((exception) => ({
+          key: exception._id ? String(exception._id) : newRowKey('exception'),
+          date: toIsoDate(new Date(exception.date)),
+          status: text(exception.status),
+          pricePerPerson: numeric(exception.pricePerPerson),
+        })),
+    })),
+
+    blackoutPeriods: (trip.blackoutPeriods ?? []).map((period) => ({
+      key: period._id ? String(period._id) : newRowKey('blackout'),
+      id: period._id ? String(period._id) : '',
+      start: toIsoDate(new Date(period.start)),
+      end: toIsoDate(new Date(period.end)),
+      reason: text(period.reason),
     })),
 
     // Sorted by `day` rather than trusted to be in array order: the stored

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { Types } from 'mongoose';
 
 import { connectDB } from '../../../lib/db';
 import BookingRequest from '../../../models/BookingRequest';
@@ -12,6 +13,16 @@ import { verifyTurnstile } from '../../../lib/turnstile';
 import { allocateReference } from '../../../lib/reference';
 import { sendBookingEmails } from '../../../lib/email';
 import { logRejection } from '../../../lib/rejections';
+import {
+  fromIsoDate,
+  nepalToday,
+  parseDepartureId,
+  toSeasonView,
+  type StoredSeason,
+} from '../../../lib/departures';
+import { snapshotDeparture } from '../../../lib/bookingDeparture';
+import type { TripType } from '../../../models/shared/departures';
+import type { IDepartureSnapshot } from '../../../models/BookingRequest';
 
 /**
  * POST /api/bookings — the site's only conversion event.
@@ -37,7 +48,7 @@ import { logRejection } from '../../../lib/rejections';
  *   2. Honeypot and time trap             — free, catches most crude bots
  *   3. Turnstile                          — network, but before any DB write
  *   4. Rate limit                         — network, keyed by IP and email
- *   5. Resolve the trip                   — DB read
+ *   5. Resolve the trip and departure     — DB read; flags, never rejects
  *   6. Allocate a reference and SAVE      — the point of no return
  *   7. Send email                         — after the write, never before
  *
@@ -176,21 +187,80 @@ export async function POST(request: Request) {
 
   await connectDB();
 
-  let tripId = null;
+  let tripId: Types.ObjectId | null = null;
   let tripTitle: string | null = null;
+  let tripType: TripType | null = null;
+  let departureId: string | null = null;
+  let departureSnapshot: IDepartureSnapshot | null = null;
+  let preferredDate = data.preferredDate ? new Date(data.preferredDate) : undefined;
 
   if (data.tripSlug) {
     const trip = await Trip.findOne({ slug: data.tripSlug, status: 'published' })
-      .select('_id title')
-      .lean();
+      .select('_id title durationDays departureSeasons')
+      .lean<{
+        _id: Types.ObjectId;
+        title: string;
+        durationDays: number;
+        departureSeasons?: StoredSeason[];
+      }>();
 
     // An unknown slug is not worth rejecting a real inquiry over — it becomes
     // a general inquiry and the message usually says what they meant.
     if (trip) {
       tripId = trip._id;
       tripTitle = trip.title;
+      // The visitor's choice, as made. The schema has already required one.
+      tripType = data.tripType ?? null;
+
+      /*
+       * A group inquiry: check the departure against the seasons as they are
+       * *now*, in Pokhara's date — the page the visitor chose from may be an
+       * hour old. The snapshot is built here from the trip's own data; the
+       * payload supplied only the id.
+       *
+       * Full, closed, or gone since they looked: saved all the same and
+       * flagged by `statusAtSubmission`. Losing the lead would be the worst
+       * outcome; the office can offer the next date.
+       */
+      if (tripType === 'group' && data.departureId) {
+        const snapshot = snapshotDeparture(
+          (trip.departureSeasons ?? []).map(toSeasonView),
+          trip.durationDays,
+          data.departureId,
+          nepalToday()
+        );
+
+        if (snapshot) {
+          departureId = data.departureId;
+          departureSnapshot = {
+            startDate: fromIsoDate(snapshot.startDate),
+            endDate: fromIsoDate(snapshot.endDate),
+            pricePerPerson: snapshot.pricePerPerson,
+            statusAtSubmission: snapshot.statusAtSubmission,
+          };
+          // The departure *is* the start date they asked for; see the model.
+          preferredDate = departureSnapshot.startDate;
+
+          if (snapshot.statusAtSubmission !== 'available') {
+            console.warn(
+              `[bookings] Departure ${departureId} was ${snapshot.statusAtSubmission} at submission — saved and flagged.`
+            );
+          }
+        }
+      }
+
+      // A private inquiry never carries a departure, whatever the payload says.
     } else {
       console.warn(`[bookings] Unknown trip slug "${data.tripSlug}" — saved as general.`);
+
+      /*
+       * With no trip there is no season to check and no length to derive an
+       * end date from, so no departure is recorded. The date is not thrown
+       * away with it: it becomes the preferred date, which is what it was.
+       */
+      const parsed = data.departureId ? parseDepartureId(data.departureId) : null;
+
+      if (parsed) preferredDate = fromIsoDate(parsed.date);
     }
   }
 
@@ -214,7 +284,10 @@ export async function POST(request: Request) {
        * what the visitor actually asked about.
        */
       tripTitle: tripTitle ?? undefined,
-      preferredDate: data.preferredDate ? new Date(data.preferredDate) : undefined,
+      tripType,
+      departureId,
+      departureSnapshot,
+      preferredDate,
       travellers: data.travellers,
       message: data.message,
       preferredChannel: data.preferredChannel,

@@ -15,6 +15,9 @@ import BookingRequest from '../../../../../models/BookingRequest';
 import { adminTripSchema } from '../../../../../lib/validators/adminTrip';
 import { isSlugTaken } from '../../../../../lib/queries/adminTrips';
 import { findStalePriceCopy } from '../../../../../lib/staleCopy';
+import { fromIsoDate } from '../../../../../lib/departures';
+import { tripReferencePaths } from '../../../../../lib/revalidation';
+import { mongooseFieldErrors } from '../../../../../lib/mongooseErrors';
 
 export const dynamic = 'force-dynamic';
 
@@ -109,6 +112,11 @@ function affectedPaths(location: TripLocation): string[] {
      */
     '/sitemap.xml',
     '/llms.txt',
+    /*
+     * The inquiry form carries every published trip's seasons, so a change to
+     * a departure — or a trip published or archived — has to reach it too.
+     */
+    '/contact',
   ];
 
   if (location.activitySlug) {
@@ -135,6 +143,33 @@ function affectedPaths(location: TripLocation): string[] {
   if (regionPath) paths.push(regionPath);
 
   return paths;
+}
+
+/**
+ * The `_id` to keep for an edited subdocument, or undefined for a new one.
+ *
+ * A generated departure is identified by its **season's** `_id` plus the date,
+ * and inquiries will store that identity. So editing a season's price or
+ * exceptions must leave it the *same* season. Rebuilding the array from the
+ * payload — which is how pricing tiers are saved — gives every row a fresh
+ * `_id` on every save, and every departure in the season would change
+ * identity the first time anyone corrected a typo.
+ *
+ * The id is only honoured if it already belongs to **this trip**, and only
+ * once. The client does not get to choose ids: an unknown one is treated as a
+ * new row, and a duplicated one keeps its identity on the first row only, so
+ * two seasons can never end up sharing an `_id`.
+ */
+function keptId(
+  id: string,
+  existing: Set<string>,
+  claimed: Set<string>
+): { _id: mongoose.Types.ObjectId } | Record<string, never> {
+  if (!id || !existing.has(id) || claimed.has(id)) return {};
+
+  claimed.add(id);
+
+  return { _id: new mongoose.Types.ObjectId(id) };
 }
 
 async function resolveLocation(
@@ -337,6 +372,62 @@ export async function PATCH(
   }));
 
   /*
+   * Seasons and blackout periods keep their stored `_id` — see `keptId`.
+   * The sets are built from what is stored *before* the assignment, because
+   * after it the array holds only what the client sent.
+   *
+   * Dates arrive as `YYYY-MM-DD` and are stored as UTC midnight on that day.
+   * They are calendar dates, not instants, so no time zone is applied here —
+   * contrast the inquiry filters, which do apply Nepal time, because those
+   * bound *moments* an inquiry arrived.
+   */
+  const existingSeasonIds = new Set(
+    trip.departureSeasons.map((season) => String(season._id))
+  );
+  const claimedSeasonIds = new Set<string>();
+
+  trip.departureSeasons = data.departureSeasons.map((season) => ({
+    ...keptId(season.id, existingSeasonIds, claimedSeasonIds),
+    startDate: fromIsoDate(season.startDate),
+    endDate: fromIsoDate(season.endDate),
+    pattern: season.pattern,
+    /*
+     * Cleared for a daily season, so a pattern switched from "Mon, Thu" to
+     * daily does not keep a list of days that no longer means anything and
+     * would silently come back if the pattern were switched again. Sorted and
+     * de-duplicated so the stored list reads in week order.
+     */
+    weekdays:
+      season.pattern === 'weekdays'
+        ? [...new Set(season.weekdays)].sort((a, b) => a - b)
+        : [],
+    pricePerPerson: season.pricePerPerson,
+    /*
+     * Exceptions carry no identity of their own — a departure is the season
+     * plus the date — so they are rebuilt freely, sorted into date order.
+     */
+    exceptions: [...season.exceptions]
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+      .map((exception) => ({
+        date: fromIsoDate(exception.date),
+        status: exception.status,
+        pricePerPerson: exception.pricePerPerson ?? null,
+      })),
+  }));
+
+  const existingBlackoutIds = new Set(
+    trip.blackoutPeriods.map((period) => String(period._id))
+  );
+  const claimedBlackoutIds = new Set<string>();
+
+  trip.blackoutPeriods = data.blackoutPeriods.map((period) => ({
+    ...keptId(period.id, existingBlackoutIds, claimedBlackoutIds),
+    start: fromIsoDate(period.start),
+    end: fromIsoDate(period.end),
+    reason: period.reason,
+  }));
+
+  /*
    * `day` is renumbered from the array order, never taken from the client.
    *
    * The editor reorders by dragging, so the array order *is* the itinerary
@@ -432,13 +523,8 @@ export async function PATCH(
      * for those, and the admin sees a spinner stop with no explanation.
      */
     if (error instanceof mongoose.Error.ValidationError) {
-      const fieldErrors: Record<string, string> = {};
-
-      for (const [path, detail] of Object.entries(error.errors)) {
-        // Subdocument paths arrive as `itinerary.3.maxAltitudeM`; the editor
-        // keys on the top-level field, so the tab can be opened.
-        fieldErrors[path] = detail.message;
-      }
+      // Nested paths are kept whole — see mongooseFieldErrors.
+      const fieldErrors = mongooseFieldErrors(error);
 
       return NextResponse.json(
         { error: 'Some fields need checking.', fieldErrors },
@@ -463,7 +549,7 @@ export async function PATCH(
     console.error('[admin/trips] Save failed:', error);
 
     return NextResponse.json(
-      { error: 'Could not save. Nothing was changed.' },
+      { error: 'Server error — could not save. Nothing was changed.' },
       { status: 500 }
     );
   }
@@ -557,6 +643,14 @@ export async function PATCH(
 
   if (previousLocation) affectedPaths(previousLocation).forEach((p) => paths.add(p));
   if (newLocation) affectedPaths(newLocation).forEach((p) => paths.add(p));
+
+  /*
+   * The pages that show this trip's price without being "about" it: the
+   * homepage's featured cards, and the related-trip cards on other trips and
+   * on blog posts. None of those URLs can be built from the trip's own
+   * location, so they are looked up.
+   */
+  for (const path of await tripReferencePaths(trip._id)) paths.add(path);
 
   for (const path of paths) revalidatePath(path);
 

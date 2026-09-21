@@ -4,6 +4,14 @@ import type { TripFilterMeta } from '../lib/tripFilters';
 import type { TripDifficulty } from '../models/Trip';
 import { GRADE_ORDER } from '../lib/difficultyGrades';
 import {
+  toIsoDate,
+  toSeasonView,
+  currentBlackouts,
+  privateFromPrice,
+  type SeasonView,
+  type BlackoutView,
+} from '../lib/departures';
+import {
   formatRange,
   formatDays,
   formatMetres,
@@ -261,4 +269,61 @@ export function toActivityComparisonRows(
       tripCount: row?.tripCount ?? 0,
     };
   });
+}
+
+/**
+ * Everything the trip page's booking rail needs, as plain data.
+ *
+ * **Seasons cross the boundary, not departures.** A season running daily from
+ * October to March is one small object and about 180 generated dates; sending
+ * the season and generating in the browser keeps the page payload flat however
+ * long the season runs. The browser uses the same `generateDepartures()` the
+ * server does, so the two cannot disagree about which dates exist.
+ *
+ * Seasons that have ended before today and blackout periods that have
+ * finished are dropped here, so nothing already gone is sent at all. The rail
+ * re-checks against a fresh "today" in the browser, which covers a cached page
+ * generated before a date passed.
+ *
+ * `?? []` on both arrays guards a trip read before the migration wrote them:
+ * `.lean()` reads **do not apply schema defaults**, whatever `ITrip` claims.
+ */
+export interface BookingRailDTO {
+  tripSlug: string;
+  durationDays: number;
+  /** Nepal's date when the page was generated. */
+  today: string;
+  privateFrom: number;
+  seasons: SeasonView[];
+  blackoutPeriods: BlackoutView[];
+}
+
+export function toBookingRail(
+  trip: ITripPopulated,
+  today: string
+): BookingRailDTO {
+  const seasons: SeasonView[] = (trip.departureSeasons ?? [])
+    .map(toSeasonView)
+    .filter((season) => season.endDate >= today);
+
+  const blackoutPeriods: BlackoutView[] = (trip.blackoutPeriods ?? []).map(
+    (period) => ({
+      id: String(period._id),
+      start: toIsoDate(new Date(period.start)),
+      end: toIsoDate(new Date(period.end)),
+      reason: period.reason ?? null,
+    })
+  );
+
+  return {
+    tripSlug: trip.slug,
+    durationDays: trip.durationDays,
+    today,
+    privateFrom: privateFromPrice({
+      price: trip.price,
+      groupPricing: trip.groupPricing ?? [],
+    }),
+    seasons,
+    blackoutPeriods: currentBlackouts(blackoutPeriods, today),
+  };
 }

@@ -15,6 +15,7 @@ import type {
 import TripBasicTab from './trip/TripBasicTab';
 import TripFactsTab from './trip/TripFactsTab';
 import TripPricingTab from './trip/TripPricingTab';
+import TripDeparturesTab from './trip/TripDeparturesTab';
 import TripSeoTab from './trip/TripSeoTab';
 import TripSaveBar from './trip/TripSaveBar';
 import ItineraryEditor from './trip/ItineraryEditor';
@@ -23,6 +24,14 @@ import GalleryUploader from './trip/GalleryUploader';
 import FaqEditor from './trip/FaqEditor';
 import UnsavedChangesGuard from './UnsavedChangesGuard';
 import type { StaleCopyWarning } from '../../lib/staleCopy';
+import { describeSaveFailure } from './saveFailure';
+import {
+  TABS,
+  firstTabWithError,
+  tabForField,
+  withoutErrorsFor,
+  type TabName,
+} from './trip/tabs';
 
 /**
  * The trip editor.
@@ -40,7 +49,7 @@ import type { StaleCopyWarning } from '../../lib/staleCopy';
  * submitted. It would also make a half-saved trip a normal outcome.
  *
  * The consequence is that a validation error can belong to a tab that is not
- * open, so `TAB_FOR_FIELD` maps every field back to its tab and a failed save
+ * open, so `trip/tabs.ts` maps every field path back to its tab and a failed save
  * switches to the first one holding an error. An error the admin cannot see is
  * the same as no error at all — the save button just stops working.
  *
@@ -61,72 +70,6 @@ import type { StaleCopyWarning } from '../../lib/staleCopy';
  * edit — the sidebar is right there. That gap is real and is called out on the
  * save bar rather than papered over.
  */
-
-const TABS = [
-  'Basic',
-  'Facts',
-  'Pricing',
-  'Itinerary',
-  'Includes',
-  'Gallery',
-  'FAQs',
-  'SEO',
-] as const;
-
-type TabName = (typeof TABS)[number];
-
-/**
- * Which tab holds each field, so a server error can open the tab it belongs to.
- *
- * Keyed by the field name the API returns. Mongoose subdocument errors arrive
- * as `itinerary.3.maxAltitudeM`, so the lookup takes the first path segment.
- */
-const TAB_FOR_FIELD: Record<string, TabName> = {
-  title: 'Basic',
-  slug: 'Basic',
-  destination: 'Basic',
-  activity: 'Basic',
-  summary: 'Basic',
-  answerBlock: 'Basic',
-  description: 'Basic',
-  status: 'Basic',
-  featured: 'Basic',
-
-  durationDays: 'Facts',
-  difficulty: 'Facts',
-  bestMonths: 'Facts',
-  region: 'Facts',
-  maxAltitudeM: 'Facts',
-  peakName: 'Facts',
-  tripGrade: 'Facts',
-  minGroupSize: 'Facts',
-  maxGroupSize: 'Facts',
-  hasElevationProfile: 'Facts',
-  startPoint: 'Facts',
-  endPoint: 'Facts',
-
-  price: 'Pricing',
-  discountedPrice: 'Pricing',
-  priceLabel: 'Pricing',
-  groupPricing: 'Pricing',
-
-  itinerary: 'Itinerary',
-  includes: 'Includes',
-  excludes: 'Includes',
-  gallery: 'Gallery',
-  coverImage: 'Gallery',
-  coverImageAlt: 'Gallery',
-  faqs: 'FAQs',
-
-  metaTitle: 'SEO',
-  metaDescription: 'SEO',
-  canonicalUrl: 'SEO',
-  ogTitle: 'SEO',
-  ogDescription: 'SEO',
-  ogImage: 'SEO',
-  schemaType: 'SEO',
-  noIndex: 'SEO',
-};
 
 export default function TripEditor({
   initialValues,
@@ -201,13 +144,7 @@ export default function TripEditor({
        * mean an admin fixing a value and still seeing it flagged, which reads
        * as "my fix was wrong" rather than "this has not been rechecked".
        */
-      setErrors((current) => {
-        if (!(key in current)) return current;
-
-        const next = { ...current };
-        delete next[key as string];
-        return next;
-      });
+      setErrors((current) => withoutErrorsFor(current, key as string));
     },
     []
   );
@@ -293,7 +230,7 @@ export default function TripEditor({
     const counts: Partial<Record<TabName, number>> = {};
 
     for (const field of Object.keys(errors)) {
-      const tabName = TAB_FOR_FIELD[field.split('.')[0]];
+      const tabName = tabForField(field);
       if (tabName) counts[tabName] = (counts[tabName] ?? 0) + 1;
     }
 
@@ -329,18 +266,18 @@ export default function TripEditor({
       const result = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const fieldErrors = (result.fieldErrors ?? {}) as Record<string, string>;
+        /*
+         * A validation failure names its fields; anything else is said to be
+         * a server error, never a bare "Could not save" — see saveFailure.ts.
+         */
+        const failure = describeSaveFailure(response.status, result);
 
-        setErrors(fieldErrors);
-        setFormError(result.error ?? 'Could not save.');
+        setErrors(failure.fieldErrors);
+        setFormError(failure.message);
 
         // Open the first tab that actually holds an error, in tab order rather
         // than in whatever order the server happened to report them.
-        const firstTab = TABS.find((candidate) =>
-          Object.keys(fieldErrors).some(
-            (field) => TAB_FOR_FIELD[field.split('.')[0]] === candidate
-          )
-        );
+        const firstTab = firstTabWithError(failure.fieldErrors);
 
         if (firstTab) setTab(firstTab);
 
@@ -400,7 +337,7 @@ export default function TripEditor({
         warnings={warnings}
         onDismissWarnings={() => setWarnings([])}
         onGoToField={(field) => {
-          const target = TAB_FOR_FIELD[field];
+          const target = tabForField(field);
           if (target) setTab(target);
         }}
         onSave={save}
@@ -481,6 +418,16 @@ export default function TripEditor({
 
         {tab === 'Pricing' && (
           <TripPricingTab values={values} errors={errors} set={set} />
+        )}
+
+        {tab === 'Departures' && (
+          <TripDeparturesTab
+            seasons={values.departureSeasons}
+            blackoutPeriods={values.blackoutPeriods}
+            onSeasonsChange={(rows) => set('departureSeasons', rows)}
+            onBlackoutPeriodsChange={(rows) => set('blackoutPeriods', rows)}
+            errors={errors}
+          />
         )}
 
         {tab === 'SEO' && (

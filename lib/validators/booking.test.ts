@@ -62,6 +62,10 @@ function browserPayload(overrides: Record<string, unknown> = {}) {
     phone: '',
     nationality: 'United Kingdom',
     tripSlug: '',
+    // Both present and blank, as the browser sends them: the radio group
+    // untouched and the departure picker's hidden input empty.
+    tripType: '',
+    departureId: '',
     preferredDate: '',
     travellers: 2,
     message: '',
@@ -114,6 +118,8 @@ describe('blank optional fields — the shape a real browser sends', () => {
           // Everything else filled in, so a failure can only be this field.
           phone: '+44 7700 900000',
           tripSlug: 'everest-base-camp-trek',
+          // Naming a trip requires a choice; see "the trip choice" below.
+          tripType: 'private',
           preferredDate: futureDate(),
           message: 'We have two weeks in October.',
           [field]: '',
@@ -161,6 +167,7 @@ describe('filled optional fields still work', () => {
       browserPayload({
         phone: '  +44 7700 900000  ',
         tripSlug: 'everest-base-camp-trek',
+        tripType: 'private',
         preferredDate: date,
         message: 'Two of us, both have trekked before.',
       })
@@ -291,6 +298,81 @@ describe('required fields', () => {
   test('zero travellers is rejected', () => {
     assert.equal(
       bookingFormSchema.safeParse(browserPayload({ travellers: 0 })).success,
+      false
+    );
+  });
+});
+
+describe('the trip choice — group or private', () => {
+  const DEPARTURE = '65f0c0ffee0000000000abcd:2026-10-13';
+
+  test('a general inquiry needs no choice, and the blanks normalise away', () => {
+    const result = bookingFormSchema.parse(browserPayload());
+
+    assert.equal(result.tripType, undefined);
+    assert.equal(result.departureId, undefined);
+  });
+
+  test('naming a trip without choosing is rejected, keyed to tripType', () => {
+    const result = bookingFormSchema.safeParse(
+      browserPayload({ tripSlug: 'everest-base-camp-trek' })
+    );
+
+    assert.equal(result.success, false);
+    assert.deepEqual(result.success ? null : result.error.issues[0].path, ['tripType']);
+  });
+
+  test('a group inquiry without a departure is rejected, keyed to departureId', () => {
+    const result = bookingFormSchema.safeParse(
+      browserPayload({ tripSlug: 'everest-base-camp-trek', tripType: 'group' })
+    );
+
+    assert.equal(result.success, false);
+    assert.deepEqual(result.success ? null : result.error.issues[0].path, ['departureId']);
+  });
+
+  test('a group inquiry with a departure is accepted', () => {
+    const result = bookingFormSchema.parse(
+      browserPayload({ tripSlug: 'everest-base-camp-trek', tripType: 'group', departureId: DEPARTURE })
+    );
+
+    assert.equal(result.tripType, 'group');
+    assert.equal(result.departureId, DEPARTURE);
+  });
+
+  test('a private inquiry needs no date', () => {
+    assert.equal(
+      bookingFormSchema.safeParse(
+        browserPayload({ tripSlug: 'everest-base-camp-trek', tripType: 'private' })
+      ).success,
+      true
+    );
+  });
+
+  test('a malformed departure id is rejected — including an impossible date', () => {
+    for (const departureId of ['nope', '65f0c0ffee0000000000abcd:2026-02-31', '65f0:2026-10-13']) {
+      const result = bookingFormSchema.safeParse(
+        browserPayload({ tripSlug: 'everest-base-camp-trek', tripType: 'group', departureId })
+      );
+
+      assert.equal(result.success, false, departureId);
+    }
+  });
+
+  test('an unknown trip type is rejected', () => {
+    assert.equal(
+      bookingFormSchema.safeParse(
+        browserPayload({ tripSlug: 'everest-base-camp-trek', tripType: 'guaranteed' })
+      ).success,
+      false
+    );
+  });
+
+  test('the endpoint schema applies the same rule', () => {
+    assert.equal(
+      bookingSubmissionSchema.safeParse(
+        browserSubmission({ tripSlug: 'everest-base-camp-trek' })
+      ).success,
       false
     );
   });

@@ -12,6 +12,13 @@ import {
   type Month,
   type TripDifficulty,
 } from './shared/tripVocab';
+import {
+  EXCEPTION_STATUSES,
+  SEASON_PATTERNS,
+  type ExceptionStatus,
+  type SeasonPattern,
+} from './shared/departures';
+import { exceptionProblems, seasonOverlaps, toIsoDate } from '../lib/departures';
 
 /*
  * The month and difficulty vocabularies live in `shared/tripVocab.ts` and are
@@ -23,6 +30,18 @@ import {
  */
 export { MONTHS, TRIP_DIFFICULTIES } from './shared/tripVocab';
 export type { Month, TripDifficulty } from './shared/tripVocab';
+export {
+  DEPARTURE_STATUSES,
+  DEPARTURE_STATUS_LABELS,
+  EXCEPTION_STATUSES,
+  SEASON_PATTERNS,
+  ISO_WEEKDAYS,
+} from './shared/departures';
+export type {
+  DepartureStatus,
+  ExceptionStatus,
+  SeasonPattern,
+} from './shared/departures';
 
 
 /* ------------------------------------------------------------------ *
@@ -45,6 +64,88 @@ export interface IGroupPriceTier {
   pricePerPerson: number;
   /** The "what changes" column — "Private guide throughout", "Second guide added". */
   label?: string;
+}
+
+/**
+ * One date in a season that departs differently from the rest of it.
+ *
+ * `status` is `ExceptionStatus | null`, not optional. Null is a real value:
+ * "this date still runs" — the case where the exception exists only to give
+ * the date its own price. `pricePerPerson` is null when the season's price
+ * applies. An exception must do at least one of the two; one that does neither
+ * is rejected, because it would be a row that looks meaningful and changes
+ * nothing.
+ *
+ * No `_id` is relied on. A departure's identity is the **season's** id plus
+ * the date, so an exception can be removed and re-added without changing
+ * which departure an inquiry points at.
+ */
+export interface IDepartureException {
+  _id?: Types.ObjectId;
+  date: Date;
+  status: ExceptionStatus | null;
+  pricePerPerson: number | null;
+}
+
+/**
+ * A departure season: a date range, a pattern, a price per person, and the
+ * dates that are exceptions to it.
+ *
+ * ## Seasons, not departures
+ *
+ * A trek that leaves daily from October to December is ninety departures.
+ * Storing ninety rows would make the office type ninety rows, and a price
+ * change ninety edits. So the season is stored, and the departures are
+ * **generated** from it by `generateDepartures()` in `lib/departures.ts` —
+ * the one generator the page, the rail, the editor and the validators below
+ * all use. A season whose start equals its end is a single departure: one
+ * model, not two.
+ *
+ * ## Dates, not instants
+ *
+ * `startDate`, `endDate` and every exception `date` are **calendar dates**,
+ * stored at UTC midnight because MongoDB has no date-only type. They are the
+ * range of days a group can **start** on; the trip's own end date is derived
+ * from `durationDays`. Nothing may run them through a time zone — see
+ * `lib/departures.ts`.
+ *
+ * ## Identity
+ *
+ * A generated departure is identified by `<season _id>:<YYYY-MM-DD>`. Part two
+ * stores that on an inquiry, so the season's `_id` must survive an edit to its
+ * price or exceptions — the save route carries it through (`keptId`) rather
+ * than rebuilding the array with fresh ids.
+ *
+ * ## What is deliberately absent
+ *
+ * No capacity or places-booked figure, no "guaranteed" flag, no "past"
+ * status. A date that has gone is simply not generated any more.
+ */
+export interface IDepartureSeason {
+  _id?: Types.ObjectId;
+  startDate: Date;
+  endDate: Date;
+  pattern: SeasonPattern;
+  /** ISO weekdays, 1 = Monday … 7 = Sunday. Used only by `weekdays`. */
+  weekdays: number[];
+  /** USD, like every stored price. Flat for the season — no tiers. */
+  pricePerPerson: number;
+  exceptions: IDepartureException[];
+}
+
+/**
+ * A span when a **private** trip cannot run — a festival, a closure, the
+ * office's own leave. Group departures ignore it; they carry their own dates.
+ *
+ * Inclusive at both ends: a period from 20 to 24 December blocks the 24th.
+ * `reason` is optional and shown to the visitor when present, so it is written
+ * for them ("Tihar — lodges closed") rather than as an internal note.
+ */
+export interface IBlackoutPeriod {
+  _id?: Types.ObjectId;
+  start: Date;
+  end: Date;
+  reason?: string;
 }
 
 export interface IItineraryDay {
@@ -165,6 +266,15 @@ export interface ITrip extends ISeoFields {
   /** Display override, e.g. "From USD 1,299 per person". */
   priceLabel?: string;
   groupPricing: IGroupPriceTier[];
+  /**
+   * Group departure seasons. May be empty — a trip with none is sold as
+   * private only — but never `undefined` once migrated: the schema defaults it
+   * to `[]`, and scripts/migrate-departures-to-seasons.ts wrote it onto every
+   * trip that predated it, because `.lean()` reads skip schema defaults.
+   */
+  departureSeasons: IDepartureSeason[];
+  /** Dates a private trip cannot start. See IBlackoutPeriod. */
+  blackoutPeriods: IBlackoutPeriod[];
 
   // --- content ---
   highlights: string[];
@@ -220,6 +330,119 @@ const GroupPriceTierSchema = new Schema<IGroupPriceTier>({
   maxPeople: { type: Number, required: true, min: 1 },
   pricePerPerson: { type: Number, required: true, min: 0 },
   label: { type: String, trim: true },
+});
+
+/**
+ * Validators that need the rest of the subdocument read it through `this`, so
+ * they are `function`, never arrow functions — an arrow function has no
+ * `this` of its own.
+ *
+ * Mongoose types that `this` as **the subdocument or a Query**, and the type
+ * is telling the truth: on `save()` it is the subdocument, under
+ * `runValidators` on an update it is the Query, which has none of these
+ * fields. The `'startDate' in this` test is a **type guard** — inside it,
+ * TypeScript narrows the union to the member that has the property. Outside
+ * it, the rule returns false and fails *closed*. Admin writes go through
+ * `save()` regardless.
+ */
+const DepartureExceptionSchema = new Schema<IDepartureException>({
+  date: { type: Date, required: true },
+  /*
+   * `null` is listed in the enum because Mongoose's enum validator only skips
+   * `undefined`. Without it, "runs as normal at its own price" — status null —
+   * would be rejected as not one of the allowed values.
+   */
+  status: { type: String, enum: [...EXCEPTION_STATUSES, null], default: null },
+  pricePerPerson: { type: Number, min: 0, default: null },
+});
+
+const DepartureSeasonSchema = new Schema<IDepartureSeason>({
+  startDate: { type: Date, required: true },
+  /*
+   * On or after the start — **not** strictly after, unlike a blackout period.
+   * A season whose end equals its start is a single departure, which is how
+   * a one-off date is entered.
+   */
+  endDate: {
+    type: Date,
+    required: true,
+    validate: {
+      validator: function (end: Date) {
+        if (!('startDate' in this) || !this.startDate) return false;
+
+        return end.getTime() >= this.startDate.getTime();
+      },
+      message: 'A season cannot end before it starts.',
+    },
+  },
+  pattern: { type: String, enum: SEASON_PATTERNS, required: true, default: 'daily' },
+  weekdays: {
+    type: [{ type: Number, min: 1, max: 7 }],
+    default: [],
+    validate: {
+      validator: function (weekdays: number[]) {
+        if (!('pattern' in this)) return false;
+
+        return this.pattern !== 'weekdays' || weekdays.length > 0;
+      },
+      message: 'Choose at least one day of the week.',
+    },
+  },
+  pricePerPerson: { type: Number, required: true, min: 0 },
+  exceptions: {
+    type: [DepartureExceptionSchema],
+    default: [],
+    /*
+     * The same rule the Zod schema applies, from the same function, so the two
+     * cannot disagree about what a valid exception is: on a date the season
+     * departs, doing something, and not repeated.
+     */
+    validate: {
+      validator: function (exceptions: IDepartureException[]) {
+        if (!('startDate' in this) || !this.startDate || !this.endDate) return false;
+
+        const problems = exceptionProblems(
+          {
+            startDate: toIsoDate(this.startDate),
+            endDate: toIsoDate(this.endDate),
+            pattern: this.pattern,
+            weekdays: this.weekdays,
+          },
+          exceptions.map((exception) => ({
+            date: toIsoDate(exception.date),
+            status: exception.status,
+            pricePerPerson: exception.pricePerPerson,
+          }))
+        );
+
+        return problems.size === 0;
+      },
+      message:
+        'Every exception must fall on a date this season departs, mark it full or closed or give it a price, and appear only once.',
+    },
+  },
+});
+
+/**
+ * Strictly after, unlike a season: a blackout whose end equals its start is a
+ * typo more often than a one-day closure, and a one-day closure is written as
+ * the 25th to the 26th.
+ */
+const BlackoutPeriodSchema = new Schema<IBlackoutPeriod>({
+  start: { type: Date, required: true },
+  end: {
+    type: Date,
+    required: true,
+    validate: {
+      validator: function (end: Date) {
+        if (!('start' in this) || !this.start) return false;
+
+        return end.getTime() > this.start.getTime();
+      },
+      message: 'A blackout period must end after it starts.',
+    },
+  },
+  reason: { type: String, trim: true },
 });
 
 const ItineraryDaySchema = new Schema<IItineraryDay>({
@@ -387,6 +610,38 @@ const TripSchema = new Schema<ITrip>(
     discountedPrice: { type: Number, min: 0 },
     priceLabel: { type: String, trim: true },
     groupPricing: { type: [GroupPriceTierSchema], default: [] },
+    departureSeasons: {
+      type: [DepartureSeasonSchema],
+      default: [],
+      /*
+       * No two seasons may depart on the same date — two prices and two
+       * identities for one departure is a data-entry mistake, and a different
+       * price on part of a season is what an exception is for. Same function
+       * as the Zod schema and the editor's live check; see `seasonOverlaps`.
+       *
+       * On the array, not on a season, because the rule is about pairs. The
+       * error arrives keyed `departureSeasons`, which the Departures tab
+       * renders above the list.
+       */
+      validate: {
+        validator: function (seasons: IDepartureSeason[]) {
+          return (
+            seasonOverlaps(
+              seasons.map((season) => ({
+                // A season missing a date fails its own `required`; here it
+                // is skipped rather than allowed to throw.
+                startDate: season.startDate ? toIsoDate(season.startDate) : '',
+                endDate: season.endDate ? toIsoDate(season.endDate) : '',
+                pattern: season.pattern,
+                weekdays: season.weekdays,
+              }))
+            ).size === 0
+          );
+        },
+        message: 'Two seasons depart on the same date. Each date may belong to one season only.',
+      },
+    },
+    blackoutPeriods: { type: [BlackoutPeriodSchema], default: [] },
 
     highlights: { type: [String], default: [] },
     itinerary: { type: [ItineraryDaySchema], default: [] },

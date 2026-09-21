@@ -8,10 +8,21 @@ import Breadcrumbs from '../ui/Breadcrumbs';
 import TripCard from './TripCard';
 import TripGallery from './TripGallery';
 import ElevationProfile from './ElevationProfile';
+import TripBookingRail from './TripBookingRail';
 
 import { ITripPopulated } from '../../models/Trip';
 import { tripPath } from '../../lib/urls';
-import { toGalleryImages, toElevationPoints } from '../../types/dto';
+import {
+  toGalleryImages,
+  toElevationPoints,
+  toBookingRail,
+} from '../../types/dto';
+import {
+  nepalToday,
+  generateDepartures,
+  groupFromPrice,
+  headlineFromPrice,
+} from '../../lib/departures';
 import { jsonLdScript } from '../../lib/jsonLd';
 
 const SITE_URL = 'https://treknclimb.com';
@@ -43,6 +54,20 @@ export default function TripDetail({
   // converters: ObjectIds dropped, Cloudinary URLs built here on the server.
   const images = toGalleryImages(trip);
   const elevationPoints = toElevationPoints(trip);
+
+  /*
+   * The rail's data, with past departures already dropped. "Today" is
+   * Pokhara's date at the moment this page is generated; the rail refreshes it
+   * in the browser. The mobile bar shows the same headline figure, computed by
+   * the same two functions, so the two prices on one page cannot disagree.
+   */
+  const rail = toBookingRail(trip, nepalToday());
+  const headlinePrice = headlineFromPrice(
+    groupFromPrice(
+      generateDepartures(rail.seasons, rail.durationDays, rail.today)
+    ),
+    rail.privateFrom
+  );
 
   const seasonLabel =
     trip.bestMonths.length > 0
@@ -438,22 +463,14 @@ export default function TripDetail({
             {/* ---------------- sticky inquiry rail ---------------- */}
             <aside className="lg:sticky lg:top-6 lg:self-start">
               <div className="rounded-lg bg-ink p-6 text-paper">
-                <p className="text-xs uppercase tracking-wide text-paper/60">
-                  From
-                </p>
-                <p className="mt-1 font-mono text-4xl font-semibold tabular">
-                  {usd.format(trip.price)}
-                </p>
-                <p className="mt-1 text-sm text-paper/70">
-                  per person · {trip.durationDays} days
-                </p>
-
-                <Link
-                  href={`/contact?trip=${trip.slug}`}
-                  className="mt-5 block rounded-full bg-marigold px-6 py-3 text-center font-semibold text-ink transition-opacity hover:opacity-90"
-                >
-                  Get my free itinerary
-                </Link>
+                {/*
+                  The interactive part — the group/private choice, the
+                  calendar, the date input and the CTA — is a Client Component.
+                  Everything below it stays server-rendered: the risk reversal
+                  sits directly under the button, and the affiliation strip
+                  reads the database, which a Client Component cannot.
+                */}
+                <TripBookingRail rail={rail} />
 
                 <ul className="mt-4 flex flex-col gap-2 text-sm text-paper/70">
                   <li>✓ No payment now — deposit only after you approve the plan</li>
@@ -492,7 +509,8 @@ export default function TripDetail({
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="font-mono text-lg font-semibold text-paper tabular">
-              {usd.format(trip.price)}
+              <span className="sr-only">From </span>
+              {usd.format(headlinePrice)}
             </p>
             <p className="text-xs text-paper/60">
               per person · {trip.durationDays} days

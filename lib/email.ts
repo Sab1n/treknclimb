@@ -1,5 +1,10 @@
 import { Resend } from 'resend';
 import { IBookingRequest } from '../models/BookingRequest';
+import {
+  DEPARTURE_CHECK_LABELS,
+  TRIP_TYPE_LABELS,
+} from '../models/shared/departures';
+import { formatDepartureRange, storedSnapshot } from './bookingDeparture';
 
 /**
  * Transactional email via Resend.
@@ -34,6 +39,11 @@ export interface EmailOutcome {
   skipped: boolean;
 }
 
+/*
+ * `timeZone: 'UTC'`: a preferred date is a calendar date stored as UTC
+ * midnight. Without the zone it is formatted in the server's local zone, and a
+ * host west of UTC would email the office the day before.
+ */
 function formatDate(value?: Date | null): string {
   if (!value) return 'Not given';
 
@@ -41,7 +51,52 @@ function formatDate(value?: Date | null): string {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'UTC',
   });
+}
+
+const usd = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+  maximumFractionDigits: 0,
+});
+
+/**
+ * The departure rows of the notification, and the flag.
+ *
+ * The flag goes in the subject as well as the body: an inquiry for a departure
+ * that went full or closed before it arrived needs a different first reply —
+ * "that date has gone, how about the 15th?" — and whoever triages the inbox
+ * should see that before opening it.
+ */
+function departureDetails(booking: IBookingRequest): {
+  rows: [string, string][];
+  flag: string | null;
+} {
+  if (!booking.tripType) return { rows: [], flag: null };
+
+  const rows: [string, string][] = [['Trip type', TRIP_TYPE_LABELS[booking.tripType]]];
+  const snapshot = storedSnapshot(booking);
+
+  if (!snapshot) return { rows, flag: null };
+
+  rows.push(
+    ['Departure', formatDepartureRange(snapshot.startDate, snapshot.endDate)],
+    [
+      'Price per person',
+      snapshot.pricePerPerson === null
+        ? 'Unknown — the departure no longer existed'
+        : `${usd.format(snapshot.pricePerPerson)} (at submission)`,
+    ],
+    ['Departure when submitted', DEPARTURE_CHECK_LABELS[snapshot.statusAtSubmission]]
+  );
+
+  const flag =
+    snapshot.statusAtSubmission === 'available'
+      ? null
+      : `Departure ${DEPARTURE_CHECK_LABELS[snapshot.statusAtSubmission].toLowerCase()} — offer another date`;
+
+  return { rows, flag };
 }
 
 function escapeHtml(value: string): string {
@@ -62,6 +117,7 @@ export async function sendBookingEmails(
   tripTitle: string | null
 ): Promise<EmailOutcome> {
   const subjectTrip = tripTitle ?? 'a trip';
+  const departure = departureDetails(booking);
 
   const detailRows: [string, string][] = [
     ['Reference', booking.reference],
@@ -72,7 +128,11 @@ export async function sendBookingEmails(
     // on it, so whoever prices this needs it before anything else.
     ['Nationality', booking.nationality],
     ['Trip', tripTitle ?? 'Not specified — general inquiry'],
-    ['Preferred date', formatDate(booking.preferredDate)],
+    ...departure.rows,
+    // For a group inquiry this is the departure date, already shown above.
+    ...(booking.departureSnapshot
+      ? []
+      : ([['Preferred date', formatDate(booking.preferredDate)]] as [string, string][])),
     ['Travellers', String(booking.travellers)],
     ['Preferred channel', booking.preferredChannel],
     ['Source page', booking.sourcePage || 'Unknown'],
@@ -80,6 +140,7 @@ export async function sendBookingEmails(
 
   const notificationHtml = `
     <h2>New inquiry — ${escapeHtml(booking.reference)}</h2>
+    ${departure.flag ? `<p style="background:#FDECEA;border:1px solid #C0392B;color:#C0392B;padding:8px 12px"><strong>${escapeHtml(departure.flag)}.</strong> The inquiry is saved; the customer chose a date that can no longer be joined.</p>` : ''}
     <table cellpadding="6" style="border-collapse:collapse">
       ${detailRows
         .map(
@@ -120,7 +181,7 @@ export async function sendBookingEmails(
     resend.emails.send({
       from,
       to,
-      subject: `Inquiry ${booking.reference} — ${subjectTrip}`,
+      subject: `Inquiry ${booking.reference} — ${subjectTrip}${departure.flag ? ` [${departure.flag}]` : ''}`,
       html: notificationHtml,
       // Staff hit Reply and reach the customer, not the no-reply mailbox.
       replyTo: booking.email,

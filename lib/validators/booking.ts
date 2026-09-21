@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { COUNTRIES, isCountry } from '../countries';
+import { TRIP_TYPES } from '../../models/shared/departures';
+import { parseDepartureId } from '../departures';
 
 /**
  * The booking inquiry schema, shared by the client form and the route handler.
@@ -65,7 +67,7 @@ function isNotInThePast(value: string): boolean {
  * key present, blanks as empty strings — so the distinction is covered rather
  * than assumed.
  */
-export const bookingFormSchema = z.object({
+const bookingFormFields = z.object({
   name: z
     .string()
     .trim()
@@ -103,6 +105,38 @@ export const bookingFormSchema = z.object({
     .max(200)
     .transform(emptyToUndefined)
     .optional(),
+
+  /**
+   * Group departure or private trip — the visitor's choice, recorded as one.
+   *
+   * `''` is the untouched radio group. It is allowed through here and made
+   * required by `tripChoiceRule` below *only when a trip is named*: a general
+   * inquiry has no trip to travel on either way.
+   *
+   * `z.union([...]).transform()` rather than `z.enum().optional()`: the
+   * browser sends `''`, not `undefined`, so `''` has to be accepted *and*
+   * normalised before anything asks whether it is present.
+   */
+  tripType: z
+    .union([z.enum(TRIP_TYPES), z.literal('')])
+    .transform((value) => (value === '' ? undefined : value))
+    .optional(),
+
+  /**
+   * `<season id>:<YYYY-MM-DD>`, set by the departure picker. Shape-checked
+   * here; whether it still exists is the route's question, and the answer
+   * never rejects the inquiry — see `app/api/bookings/route.ts`.
+   */
+  departureId: z
+    .string()
+    .trim()
+    .max(60)
+    .transform(emptyToUndefined)
+    .optional()
+    .refine(
+      (value) => value === undefined || parseDepartureId(value) !== null,
+      'That departure is not one we recognise — please choose a date again'
+    ),
 
   preferredDate: z
     .string()
@@ -147,6 +181,44 @@ export const bookingFormSchema = z.object({
     ),
 });
 
+/**
+ * The rules that span fields: which choices a named trip requires.
+ *
+ * A standalone function so both schemas below apply the same one. Zod 4
+ * refuses to `.extend()` an object that already carries refinements, so the
+ * fields are declared once, and this is attached to each schema separately
+ * rather than to the shared base.
+ *
+ * The `data` parameter is typed from the *output* of the fields — after the
+ * transforms — which is why `tripType` is `'group' | 'private' | undefined`
+ * here and never `''`.
+ */
+function tripChoiceRule(
+  data: z.output<typeof bookingFormFields>,
+  ctx: z.RefinementCtx
+): void {
+  if (!data.tripSlug) return;
+
+  if (!data.tripType) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Choose a group departure or a private trip',
+      path: ['tripType'],
+    });
+    return;
+  }
+
+  if (data.tripType === 'group' && !data.departureId) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Choose a departure date',
+      path: ['departureId'],
+    });
+  }
+}
+
+export const bookingFormSchema = bookingFormFields.superRefine(tripChoiceRule);
+
 export type BookingFormValues = z.input<typeof bookingFormSchema>;
 export type BookingFormParsed = z.output<typeof bookingFormSchema>;
 
@@ -160,7 +232,7 @@ export { COUNTRIES };
  * `.extend()` builds a second schema from the first rather than repeating it,
  * so the form and the endpoint can never disagree about the real fields.
  */
-export const bookingSubmissionSchema = bookingFormSchema.extend({
+export const bookingSubmissionSchema = bookingFormFields.extend({
   /**
    * Honeypot. Named to look worth filling in to a bot reading the DOM, hidden
    * from people and from screen readers. Any value at all means spam.
@@ -176,7 +248,7 @@ export const bookingSubmissionSchema = bookingFormSchema.extend({
 
   /** Cloudflare Turnstile token. Absent when Turnstile is not configured. */
   turnstileToken: z.string().max(4096).optional(),
-});
+}).superRefine(tripChoiceRule);
 
 export type BookingSubmission = z.output<typeof bookingSubmissionSchema>;
 

@@ -69,6 +69,10 @@ type TripSeed = Omit<
   | 'destination'
   | 'activity'
   | 'region'
+  // Added after this seed ran, and both default to [] on the schema. Seeded
+  // separately by scripts/seed-departures.ts, never by re-running this.
+  | 'departureSeasons'
+  | 'blackoutPeriods'
 > & {
   destinationSlug: string;
   /** null for India, Tibet and Bhutan — the asymmetry, in seed form. */

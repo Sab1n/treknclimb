@@ -2,6 +2,11 @@ import { z } from 'zod';
 
 import { PUBLISH_STATUSES } from '../../models/shared/status';
 import { MONTHS, TRIP_DIFFICULTIES } from '../../models/shared/tripVocab';
+import {
+  EXCEPTION_STATUSES,
+  SEASON_PATTERNS,
+} from '../../models/shared/departures';
+import { exceptionProblems, isIsoDate, seasonOverlaps } from '../departures';
 import { isReservedSlug } from '../../models/shared/reservedSlugs';
 
 /**
@@ -86,6 +91,66 @@ const tierSchema = z.object({
   maxPeople: requiredNumber('Maximum people', 1, 100),
   pricePerPerson: requiredNumber('Tier price', 0, 1_000_000),
   label: optionalText(200),
+});
+
+/**
+ * A calendar date from an `<input type="date">`, which always submits
+ * `YYYY-MM-DD` or `''`. Checked for being a *real* date as well as the right
+ * shape — `2026-02-31` matches the pattern and `new Date()` would silently
+ * roll it into March.
+ */
+const isoDate = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .refine(isIsoDate, `${label} is not a valid date`);
+
+/**
+ * The stored subdocument id, or `''` for a row that has never been saved.
+ * Shape-checked only here; the route decides whether it belongs to this trip.
+ */
+const subdocumentId = z
+  .string()
+  .trim()
+  .refine((value) => value === '' || /^[0-9a-f]{24}$/i.test(value), 'Invalid id');
+
+/**
+ * An exception row. `status` arrives as `''` for "runs as normal" — a select's
+ * empty option — and becomes null here, the value the model stores. The price
+ * is optional and blank means "the season's price".
+ */
+const exceptionSchema = z.object({
+  key: rowKey,
+  date: isoDate('Date'),
+  status: z
+    .union([z.enum(EXCEPTION_STATUSES), z.literal('')])
+    .transform((value) => (value === '' ? null : value)),
+  pricePerPerson: optionalNumber('Price', 0, 1_000_000),
+});
+
+const seasonSchema = z.object({
+  key: rowKey,
+  id: subdocumentId,
+  startDate: isoDate('Start date'),
+  endDate: isoDate('End date'),
+  pattern: z.enum(SEASON_PATTERNS, { error: 'Choose daily or specific days' }),
+  weekdays: z.array(z.number().int().min(1).max(7)).max(7),
+  pricePerPerson: requiredNumber('Season price', 0, 1_000_000),
+  /*
+   * A season lasting a year with a handful of dates marked full is the normal
+   * case; a hundred exceptions means the season is shaped wrong and should be
+   * split.
+   */
+  exceptions: z.array(exceptionSchema).max(100),
+});
+
+const blackoutSchema = z.object({
+  key: rowKey,
+  id: subdocumentId,
+  start: isoDate('Start date'),
+  end: isoDate('End date'),
+  reason: optionalText(200),
 });
 
 const itinerarySchema = z.object({
@@ -212,6 +277,12 @@ export const adminTripSchema = z
     discountedPrice: optionalNumber('Discounted price', 0, 1_000_000),
     priceLabel: optionalText(120),
     groupPricing: z.array(tierSchema).max(20),
+    /*
+     * A season covers a range, so even a trip running year-round needs only a
+     * few — one per price. Fifty is room for a decade of them.
+     */
+    departureSeasons: z.array(seasonSchema).max(50),
+    blackoutPeriods: z.array(blackoutSchema).max(50),
 
     itinerary: z.array(itinerarySchema).max(60),
     /*
@@ -349,6 +420,77 @@ export const adminTripSchema = z
         });
       }
     }
+  })
+  /*
+   * Departure seasons and blackout periods, keyed to the field of the row that
+   * is wrong, so the editor can put each message under its input rather than
+   * above the table. Dates compare as strings: `YYYY-MM-DD` is fixed-width and
+   * most-significant first, so string order is date order.
+   *
+   * The model applies the same rules as path validators on each subdocument —
+   * that is the guarantee; this is what makes the failure arrive before a
+   * round trip, for every row at once. The exception rules come from
+   * `exceptionProblems()` in `lib/departures.ts`, which the model calls too,
+   * so the two layers cannot disagree about what a valid exception is.
+   *
+   * A season may end the day it starts — that is a single departure. A
+   * blackout may not; a one-day closure is the 25th to the 26th.
+   *
+   * Overlapping seasons are rejected: no two seasons may depart on the same
+   * date (`seasonOverlaps()`, which the model also calls). Reported on the
+   * later season's first-departure field, so it lands on an input; the model's
+   * version is keyed to the whole array, which the tab renders above the list.
+   */
+  .superRefine((data, ctx) => {
+    data.departureSeasons.forEach((season, index) => {
+      if (season.endDate < season.startDate) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'The season cannot end before it starts',
+          path: ['departureSeasons', index, 'endDate'],
+        });
+        // Exceptions are judged against the range, which is meaningless here.
+        return;
+      }
+
+      if (season.pattern === 'weekdays' && season.weekdays.length === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'Choose at least one day of the week',
+          path: ['departureSeasons', index, 'weekdays'],
+        });
+        return;
+      }
+
+      const problems = exceptionProblems(season, season.exceptions);
+
+      for (const [exceptionIndex, message] of problems) {
+        ctx.addIssue({
+          code: 'custom',
+          message,
+          path: ['departureSeasons', index, 'exceptions', exceptionIndex, 'date'],
+        });
+      }
+    });
+
+    for (const [index, message] of seasonOverlaps(data.departureSeasons)) {
+      ctx.addIssue({
+        code: 'custom',
+        message,
+        path: ['departureSeasons', index, 'startDate'],
+      });
+    }
+
+    data.blackoutPeriods.forEach((period, index) => {
+      if (period.end <= period.start) {
+        ctx.addIssue({
+          code: 'custom',
+          message:
+            'The end date must be after the start date. A one-day closure on the 25th is the 25th to the 26th.',
+          path: ['blackoutPeriods', index, 'end'],
+        });
+      }
+    });
   })
   /*
    * The conditional altitude rule.

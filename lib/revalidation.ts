@@ -1,10 +1,12 @@
 import { revalidatePath } from 'next/cache';
+import type { Types } from 'mongoose';
 
 import { connectDB } from './db';
 import Trip from '../models/Trip';
 import Activity from '../models/Activity';
 import Destination from '../models/Destination';
 import BlogCategory from '../models/BlogCategory';
+import BlogPost from '../models/BlogPost';
 
 /**
  * Which cached pages a content change makes stale.
@@ -233,6 +235,52 @@ export async function tripCanonicalPath(
   return trip.activity
     ? `/${trip.destination.slug}/${trip.activity.slug}/${trip.slug}`
     : `/${trip.destination.slug}/${trip.slug}`;
+}
+
+/**
+ * Pages that render this trip as a **card** — with its price — without being
+ * the trip's own page or a listing its location already names.
+ *
+ * Three kinds, found by reading the code rather than guessed:
+ *
+ * - **The homepage.** It shows featured trips, falling back to the first
+ *   published ones, so any published trip may be on it. Purged unconditionally;
+ *   working out whether this trip is currently among the three would be a
+ *   second copy of the homepage's own query.
+ * - **Other trips' "Similar trips"** — every published trip whose
+ *   `relatedTrips` includes this one.
+ * - **Blog posts** whose `relatedTrips` includes it.
+ *
+ * Before this existed a price edit left all three showing the old figure for
+ * the revalidate window. `/destinations` is not here because its cards show
+ * no price.
+ */
+export async function tripReferencePaths(
+  tripId: Types.ObjectId
+): Promise<string[]> {
+  await connectDB();
+
+  const paths = ['/'];
+
+  const [referencingTrips, referencingPosts] = await Promise.all([
+    Trip.find({ relatedTrips: tripId, status: 'published' })
+      .select('_id')
+      .lean<{ _id: unknown }[]>()
+      .exec(),
+    BlogPost.find({ relatedTrips: tripId, status: 'published' })
+      .select('slug')
+      .lean<{ slug: string }[]>()
+      .exec(),
+  ]);
+
+  for (const referencing of referencingTrips) {
+    const path = await tripCanonicalPath(referencing._id);
+    if (path) paths.push(path);
+  }
+
+  for (const post of referencingPosts) paths.push(`/blog/${post.slug}`);
+
+  return paths;
 }
 
 /**

@@ -14,6 +14,7 @@ import {
  */
 import type { BookingListOptions } from './queries/bookings';
 import { startOfNepalDay, endOfNepalDay } from './adminTime';
+import { TRIP_TYPES, type TripType } from '../models/shared/departures';
 
 /**
  * Turns the inquiry screen's query string into a filter.
@@ -30,6 +31,7 @@ import { startOfNepalDay, endOfNepalDay } from './adminTime';
 
 export interface InquiryFilters {
   status?: BookingStatus;
+  tripType?: TripType;
   /** The raw `YYYY-MM-DD` strings, so the form can re-render what was typed. */
   fromInput: string;
   toInput: string;
@@ -49,6 +51,7 @@ export interface InquiryFilters {
 
 export interface InquirySearchParams {
   status?: string;
+  type?: string;
   from?: string;
   to?: string;
   sort?: string;
@@ -62,6 +65,11 @@ export function parseInquiryFilters(
     params.status ?? ''
   )
     ? (params.status as BookingStatus)
+    : undefined;
+
+  // Same treatment as status: a known value or no filter.
+  const tripType = (TRIP_TYPES as readonly string[]).includes(params.type ?? '')
+    ? (params.type as TripType)
     : undefined;
 
   const sort = (BOOKING_SORT_FIELDS as readonly string[]).includes(
@@ -103,6 +111,7 @@ export function parseInquiryFilters(
 
   return {
     status,
+    tripType,
     fromInput,
     toInput,
     sort,
@@ -115,6 +124,7 @@ export function parseInquiryFilters(
 export function toListOptions(filters: InquiryFilters): BookingListOptions {
   return {
     status: filters.status,
+    tripType: filters.tripType,
     from: startOfNepalDay(filters.fromInput),
     to: endOfNepalDay(filters.toInput),
     sort: filters.sort,
@@ -136,6 +146,7 @@ export function inquiryHref(
   filters: InquiryFilters,
   overrides: Partial<{
     status: string;
+    type: string;
     from: string;
     to: string;
     sort: string;
@@ -145,6 +156,7 @@ export function inquiryHref(
 ): string {
   const values: Record<string, string> = {
     status: filters.status ?? '',
+    type: filters.tripType ?? '',
     from: filters.fromInput,
     to: filters.toInput,
     sort: filters.sort,

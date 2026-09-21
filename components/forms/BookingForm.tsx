@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useEffect, useId, useState, useSyncExternalStore } from 'react';
+import { useForm, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
 import Script from 'next/script';
@@ -12,13 +12,34 @@ import {
 } from '../../lib/validators/booking';
 import { Field, inputClass } from './Field';
 import CountrySelect from './CountrySelect';
+import {
+  blackoutOn,
+  generateDepartures,
+  isIsoDate,
+  nepalToday,
+  parseDepartureId,
+} from '../../lib/departures';
 import { CONSENT_STATEMENT } from '../../lib/consent';
+import type { BookingRailDTO } from '../../types/dto';
+import TripChoice from './TripChoice';
+import BlackoutWarning from '../content/BlackoutWarning';
 
 const RENDERED_AT_ID = 'tnc-rendered-at';
 
+/**
+ * A trip the form can name, with what its departure picker needs — the same
+ * `BookingRailDTO` the trip page's rail reads, so both generate the same
+ * departures from the same seasons.
+ */
 export interface TripOption {
   slug: string;
   title: string;
+  rail: BookingRailDTO;
+}
+
+/** The clock and the URL notify nobody; see TripBookingRail. */
+function subscribeToNothing(): () => void {
+  return () => {};
 }
 
 /**
@@ -30,6 +51,15 @@ export interface TripOption {
  * after mount rather than during render, for the same reason as the /trips
  * filters — reading the query string during render would bail this subtree out
  * of static generation and leave a fallback in the HTML instead of the form.
+ *
+ * ## The trip comes first
+ *
+ * The trip, group-or-private, and the departure sit at the top. A visitor who
+ * pressed "Continue with 13 October" on the trip page sees that departure —
+ * dates, length, price per person — before anything is asked of them, with a
+ * way to change it or switch to a private trip (`TripChoice`). Group or
+ * private is a required radio whenever a trip is named: recorded as the
+ * visitor's choice, never guessed from whether a date was filled in.
  *
  * ## Validation is inline, always
  *
@@ -47,15 +77,36 @@ export interface TripOption {
  */
 export default function BookingForm({
   trips,
+  today: serverToday,
   turnstileSiteKey,
   whatsappNumber,
 }: {
   trips: TripOption[];
+  /** Pokhara's date when the page was generated; replaced by the browser's after hydration. */
+  today: string;
   /** Absent until the Cloudflare account exists; the widget is then skipped. */
   turnstileSiteKey?: string;
   whatsappNumber?: string;
 }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  /*
+   * Read through `useSyncExternalStore` for the same reason as the rail: the
+   * server's value during hydration, the browser's afterwards, no effect and
+   * no second render. The query string is read this way too — only so that
+   * `TripChoice` can say, during render, that the departure a visitor
+   * arrived with has gone.
+   */
+  const today = useSyncExternalStore(subscribeToNothing, () => nepalToday(), () => serverToday);
+  const search = useSyncExternalStore(
+    subscribeToNothing,
+    () => window.location.search,
+    () => ''
+  );
+  const arrival = new URLSearchParams(search);
+
+  const blackoutNoteId = useId();
 
   /**
    * When the form was rendered, for the server-side time trap.
@@ -94,6 +145,8 @@ export default function BookingForm({
       phone: '',
       nationality: '',
       tripSlug: '',
+      tripType: '',
+      departureId: '',
       preferredDate: '',
       travellers: 2,
       message: '',
@@ -103,14 +156,97 @@ export default function BookingForm({
     },
   });
 
-  // Preselect the trip from ?trip=slug, after mount.
+  /*
+   * Preselect from the query string, after mount. The trip page's rail links
+   * here with a **choice**:
+   *
+   *   ?trip=<slug>&departure=<season>:<date>   a group departure
+   *   ?trip=<slug>&type=private[&date=…]       a private trip
+   *   ?trip=<slug>                             nothing chosen yet
+   *
+   * Everything is checked before it is used, because the query string is
+   * anyone's to edit. A departure is taken only if the trip still generates
+   * it and it is still available; otherwise group is still selected — that was
+   * the visitor's choice — the calendar opens, and `TripChoice` says the date
+   * has gone. A bare `?date=` is only ever a preferred date: it does not say
+   * group or private, and the form does not guess.
+   */
   useEffect(() => {
-    const slug = new URLSearchParams(window.location.search).get('trip');
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get('trip');
+    const departure = params.get('departure');
+    const date = params.get('date');
+    const trip = trips.find((candidate) => candidate.slug === slug);
 
-    if (slug && trips.some((trip) => trip.slug === slug)) {
-      setValue('tripSlug', slug);
+    if (date && isIsoDate(date)) setValue('preferredDate', date);
+
+    if (!trip) return;
+
+    setValue('tripSlug', trip.slug);
+
+    const departures = generateDepartures(trip.rail.seasons, trip.rail.durationDays, nepalToday());
+
+    if (departures.length === 0) {
+      // Group is not an option at all, so there is nothing to choose.
+      setValue('tripType', 'private');
+    } else if (departure && parseDepartureId(departure)) {
+      setValue('tripType', 'group');
+
+      const found = departures.find((candidate) => candidate.id === departure);
+
+      if (found?.status === 'available') setValue('departureId', found.id);
+    } else if (params.get('type') === 'private') {
+      setValue('tripType', 'private');
     }
   }, [trips, setValue]);
+
+  const [tripSlug, tripType, departureId, preferredDate] = useWatch({
+    control,
+    name: ['tripSlug', 'tripType', 'departureId', 'preferredDate'],
+  });
+
+  const trip = trips.find((candidate) => candidate.slug === tripSlug) ?? null;
+
+  const blackout =
+    trip && tripType === 'private' && preferredDate && isIsoDate(preferredDate)
+      ? blackoutOn(preferredDate, trip.rail.blackoutPeriods)
+      : null;
+
+  /** A new trip is a new question: its departures and its prices differ. */
+  function resetChoiceFor(slug: string) {
+    const next = trips.find((candidate) => candidate.slug === slug);
+    const hasGroup =
+      !!next && generateDepartures(next.rail.seasons, next.rail.durationDays, today).length > 0;
+
+    setValue('departureId', '');
+    setValue('tripType', next && !hasGroup ? 'private' : '');
+    setPickerOpen(false);
+  }
+
+  const preferredDateField = (
+    <div>
+      <Field
+        label="Preferred start date"
+        hint="Approximate is fine"
+        error={errors.preferredDate?.message}
+        htmlFor="preferredDate"
+      >
+        {(field) => (
+          <input
+            {...field}
+            type="date"
+            min={today}
+            {...register('preferredDate')}
+            className={inputClass(!!errors.preferredDate)}
+          />
+        )}
+      </Field>
+
+      {blackout && preferredDate && (
+        <BlackoutWarning id={blackoutNoteId} date={preferredDate} blackout={blackout} tone="light" />
+      )}
+    </div>
+  );
 
   async function onSubmit(
     values: BookingFormValues,
@@ -214,6 +350,77 @@ export default function BookingForm({
 
       <input type="hidden" id={RENDERED_AT_ID} name="renderedAt" />
 
+      {/*
+        The chosen departure's identity. Set by the picker, never typed; the
+        server looks it up again and takes the dates and price from the trip,
+        not from here.
+      */}
+      <input type="hidden" {...register('departureId')} />
+
+      {/* ---------------- the trip, first ---------------- */}
+
+      <div className="flex flex-col gap-5 rounded-lg border border-hairline bg-paper/60 p-5">
+        <Field
+          label="Which trip?"
+          hint="Leave blank if you are still deciding"
+          error={errors.tripSlug?.message}
+          htmlFor="tripSlug"
+        >
+          {(field) => (
+            <select
+              {...field}
+              {...register('tripSlug', {
+                onChange: (event) => resetChoiceFor(event.target.value),
+              })}
+              className={inputClass(!!errors.tripSlug)}
+            >
+              <option value="">Not sure yet — help me choose</option>
+              {trips.map((option) => (
+                <option key={option.slug} value={option.slug}>
+                  {option.title}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+
+        {trip ? (
+          <TripChoice
+            trip={trip}
+            today={today}
+            tripType={tripType ?? ''}
+            departureId={departureId ?? ''}
+            // Only for the trip they arrived with; another trip has its own dates.
+            arrivedWith={arrival.get('trip') === trip.slug ? arrival.get('departure') : null}
+            radio={register('tripType')}
+            tripTypeError={errors.tripType?.message}
+            departureError={errors.departureId?.message}
+            pickerOpen={pickerOpen}
+            onPickDeparture={(departure) => {
+              setValue('departureId', departure.id, { shouldValidate: !!errors.departureId });
+              setPickerOpen(false);
+            }}
+            onChangeDate={() => setPickerOpen(true)}
+            onSwitchToPrivate={() => {
+              /*
+               * The departure's date carries over as the private trip's
+               * preferred date — the visitor can change it, but should not have
+               * to retype the date they just chose.
+               */
+              const chosen = departureId ? parseDepartureId(departureId) : null;
+
+              setValue('tripType', 'private');
+              setValue('departureId', '');
+              if (chosen) setValue('preferredDate', chosen.date);
+              setPickerOpen(false);
+            }}
+            privateDateField={preferredDateField}
+          />
+        ) : (
+          preferredDateField
+        )}
+      </div>
+
       <Field label="Your name" error={errors.name?.message} htmlFor="name" required>
         {(field) => (
           <input
@@ -291,45 +498,7 @@ export default function BookingForm({
         )}
       </Field>
 
-      <Field
-        label="Which trip?"
-        hint="Leave blank if you are still deciding"
-        error={errors.tripSlug?.message}
-        htmlFor="tripSlug"
-      >
-        {(field) => (
-          <select
-            {...field}
-            {...register('tripSlug')}
-            className={inputClass(!!errors.tripSlug)}
-          >
-            <option value="">Not sure yet — help me choose</option>
-            {trips.map((trip) => (
-              <option key={trip.slug} value={trip.slug}>
-                {trip.title}
-              </option>
-            ))}
-          </select>
-        )}
-      </Field>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field
-          label="Preferred start date"
-          hint="Approximate is fine"
-          error={errors.preferredDate?.message}
-          htmlFor="preferredDate"
-        >
-          {(field) => (
-            <input
-              {...field}
-              type="date"
-              {...register('preferredDate')}
-              className={inputClass(!!errors.preferredDate)}
-            />
-          )}
-        </Field>
-
+      <div className="sm:max-w-[calc(50%-0.625rem)]">
         <Field
           label="Number of travellers"
           error={errors.travellers?.message}

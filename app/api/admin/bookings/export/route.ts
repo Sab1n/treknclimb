@@ -5,6 +5,9 @@ import { getBookingRequests } from '../../../../../lib/queries/bookings';
 import { parseInquiryFilters, toListOptions } from '../../../../../lib/adminFilters';
 import { csvCell, csvDate, csvDocument, csvHeaders } from '../../../../../lib/csv';
 import { CONSENT_STATEMENT_SINCE } from '../../../../../lib/consent';
+import { bookingTripTitle } from '../../../../../lib/bookingTrip';
+import { bookingDepartureView, departureNowLabel } from '../../../../../lib/bookingDeparture';
+import { nepalToday } from '../../../../../lib/departures';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +33,7 @@ export async function GET(request: Request) {
   const filters = parseInquiryFilters(params);
 
   const bookings = await getBookingRequests(toListOptions(filters));
+  const today = nepalToday();
 
   const header = [
     'reference',
@@ -39,6 +43,13 @@ export async function GET(request: Request) {
     'phone',
     'nationality',
     'trip',
+    'trip_type',
+    'departure_id',
+    'departure_start',
+    'departure_end',
+    'departure_price_usd',
+    'departure_at_submission',
+    'departure_now',
     'travellers',
     'preferred_date',
     'preferred_channel',
@@ -51,15 +62,35 @@ export async function GET(request: Request) {
     'internal_notes',
   ];
 
-  const rows = bookings.map((booking) => [
+  const rows = bookings.map((booking) => {
+    /*
+     * The departure columns: the snapshot as submitted, and — computed at
+     * export time, like the screen — whether it can still be joined. Dates are
+     * plain YYYY-MM-DD: they are calendar dates, and an ISO timestamp would
+     * put a misleading midnight-UTC time on them.
+     */
+    const departure = bookingDepartureView(booking, today);
+
+    return [
     csvCell(booking.reference),
     csvCell(csvDate(booking.createdAt)),
     csvCell(booking.name),
     csvCell(booking.email),
     csvCell(booking.phone),
     csvCell(booking.nationality),
-    // Null for a general inquiry that names no trip — a real case, not a gap.
-    csvCell(booking.trip?.title),
+    /*
+     * Through the same fallback as every screen — live title, then the
+     * snapshot — so a deleted trip exports by name rather than as a blank.
+     * Empty for a general inquiry that names no trip: a real case, not a gap.
+     */
+    csvCell(bookingTripTitle(booking)),
+    csvCell(booking.tripType ?? ''),
+    csvCell(booking.departureId ?? ''),
+    csvCell(departure?.snapshot.startDate),
+    csvCell(departure?.snapshot.endDate),
+    csvCell(departure?.snapshot.pricePerPerson ?? null),
+    csvCell(departure?.snapshot.statusAtSubmission),
+    csvCell(departure ? departureNowLabel(departure.now) : null),
     csvCell(booking.travellers),
     csvCell(csvDate(booking.preferredDate)),
     csvCell(booking.preferredChannel),
@@ -81,7 +112,8 @@ export async function GET(request: Request) {
      */
     csvCell(CONSENT_STATEMENT_SINCE),
     csvCell(booking.internalNotes),
-  ]);
+    ];
+  });
 
   const csv = csvDocument(header, rows);
 
