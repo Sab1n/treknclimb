@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useId, useState, useSyncExternalStore } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { useForm, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Link from 'next/link';
-import Script from 'next/script';
 
 import {
   bookingFormSchema,
@@ -22,6 +21,7 @@ import {
 import { CONSENT_STATEMENT } from '../../lib/consent';
 import type { BookingRailDTO } from '../../types/dto';
 import TripChoice from './TripChoice';
+import Turnstile, { type TurnstileHandle } from './Turnstile';
 import BlackoutWarning from '../content/BlackoutWarning';
 
 const RENDERED_AT_ID = 'tnc-rendered-at';
@@ -61,6 +61,15 @@ function subscribeToNothing(): () => void {
  * private is a required radio whenever a trip is named: recorded as the
  * visitor's choice, never guessed from whether a date was filled in.
  *
+ * ## Turnstile waits, and never asks for a reload
+ *
+ * The widget is `components/forms/Turnstile.tsx`, rendered explicitly — the
+ * implicit script scans the page once on load, so arriving here by
+ * client-side navigation left no widget at all and every submission failed.
+ * Submitting waits for the token rather than sending without one, a spent
+ * token is reset after a failed attempt, and a failure says so in place
+ * instead of telling the visitor to reload a form they have just filled in.
+ *
  * ## Validation is inline, always
  *
  * Every failure renders next to the field that caused it, in `role="alert"`
@@ -90,6 +99,8 @@ export default function BookingForm({
 }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
   /*
    * Read through `useSyncExternalStore` for the same reason as the rail: the
@@ -254,14 +265,29 @@ export default function BookingForm({
   ) {
     setSubmitError(null);
 
-    // Turnstile injects this hidden input into the surrounding form once the
-    // widget solves. Read off the submit event rather than a ref, so nothing
-    // touches the DOM during render. Absent when Turnstile is not configured,
-    // which the server handles by skipping verification.
     const form = event?.target as HTMLFormElement | undefined;
-    const token = form?.querySelector<HTMLInputElement>(
-      'input[name="cf-turnstile-response"]'
-    )?.value;
+
+    /*
+     * Wait for the token instead of submitting without one. Pressing send a
+     * second after the last field is filled in is normal, and the widget may
+     * still be working; `getToken` resolves as soon as it has one. Null means
+     * it genuinely cannot complete — the widget says so and offers a retry, so
+     * this only has to explain why nothing was sent.
+     */
+    let token: string | undefined;
+
+    if (turnstileSiteKey) {
+      const resolved = await turnstileRef.current?.getToken();
+
+      if (!resolved) {
+        setSubmitError(
+          'We could not confirm that you are a person, so nothing has been sent. Use the Try again button under the check below.'
+        );
+        return;
+      }
+
+      token = resolved;
+    }
 
     const renderedAt = Number(
       form?.querySelector<HTMLInputElement>(`#${RENDERED_AT_ID}`)?.value || 0
@@ -299,6 +325,12 @@ export default function BookingForm({
           });
         }
 
+        /*
+         * A token is single use. Whatever the server rejected the submission
+         * for, the one in hand is spent, so the widget gets a fresh one before
+         * the visitor presses send again.
+         */
+        turnstileRef.current?.reset();
         setSubmitError(result.error ?? 'Something went wrong. Please try again.');
         return;
       }
@@ -313,6 +345,7 @@ export default function BookingForm({
           : '/contact/confirmation'
       );
     } catch {
+      turnstileRef.current?.reset();
       setSubmitError(
         'We could not reach the server. Please check your connection and try again, or message us on WhatsApp.'
       );
@@ -323,7 +356,13 @@ export default function BookingForm({
 
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      /*
+       * Wrapped rather than `onSubmit={handleSubmit(onSubmit)}`: that call
+       * happens during render, and `onSubmit` reads the Turnstile ref, which
+       * the React lint rules rightly refuse. Inside the handler the call
+       * happens on the event instead.
+       */
+      onSubmit={(event) => handleSubmit(onSubmit)(event)}
       // Suppresses the browser's own validation bubbles. Every message on this
       // form comes from the shared Zod schema and renders inline.
       noValidate
@@ -608,13 +647,11 @@ export default function BookingForm({
       </div>
 
       {turnstileSiteKey && (
-        <>
-          <Script
-            src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-            strategy="lazyOnload"
-          />
-          <div className="cf-turnstile" data-sitekey={turnstileSiteKey} />
-        </>
+        <Turnstile
+          ref={turnstileRef}
+          siteKey={turnstileSiteKey}
+          action="before we can send your inquiry"
+        />
       )}
 
       {submitError && (

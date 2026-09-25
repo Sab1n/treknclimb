@@ -151,7 +151,12 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error:
-          'We could not verify that you are human. Please reload the page and try again.',
+          /*
+           * Never "reload the page": that throws away everything they have
+           * typed. The form resets the widget in place and they press send
+           * again.
+           */
+          'We could not confirm that you are a person. The check has been reset — please try sending again.',
       },
       { status: 400 }
     );

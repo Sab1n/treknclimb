@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import Link from 'next/link';
-import Script from 'next/script';
+
+import Turnstile, { type TurnstileHandle } from './Turnstile';
 
 /**
  * Newsletter signup.
@@ -25,6 +26,13 @@ import Script from 'next/script';
  *
  * The *confirmation link* in the email does redirect, to `/newsletter/confirmed`
  * — different moment, different context, and by then there is no page to lose.
+ *
+ * ## Turnstile
+ *
+ * Through the shared `Turnstile` component, rendered explicitly. This form is
+ * in the footer of every page, which is exactly where the implicit script
+ * failed: it scans once on load, so after any client-side navigation the
+ * footer widget was never drawn and a subscription could not be verified.
  *
  * ## Consent
  *
@@ -53,6 +61,8 @@ export default function NewsletterSignup({
   const [consent, setConsent] = useState(false);
   const [state, setState] = useState<'idle' | 'sending' | 'done'>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
   const fieldId = useId();
   const emailId = `${fieldId}-email`;
@@ -87,12 +97,21 @@ export default function NewsletterSignup({
 
     const form = event.currentTarget;
 
-    // Turnstile injects this into the surrounding form once it solves. Read it
-    // off the submitted form rather than a ref, so nothing touches the DOM
-    // during render.
-    const token = form.querySelector<HTMLInputElement>(
-      'input[name="cf-turnstile-response"]'
-    )?.value;
+    // Waits for the token rather than sending without one; see the Turnstile
+    // component. Null means the check cannot run, which it says itself.
+    let token: string | undefined;
+
+    if (turnstileSiteKey) {
+      const resolved = await turnstileRef.current?.getToken();
+
+      if (!resolved) {
+        setError('We could not confirm that you are a person, so nothing was sent.');
+        setState('idle');
+        return;
+      }
+
+      token = resolved;
+    }
 
     const renderedAt = Number(
       form.querySelector<HTMLInputElement>(`#${CSS.escape(renderedAtId)}`)?.value || 0
@@ -115,6 +134,8 @@ export default function NewsletterSignup({
       const result = await response.json();
 
       if (!response.ok) {
+        // The token is spent whatever the reason; get a fresh one.
+        turnstileRef.current?.reset();
         setError(
           result.fieldErrors?.email ??
             result.error ??
@@ -133,6 +154,7 @@ export default function NewsletterSignup({
        */
       setState('done');
     } catch {
+      turnstileRef.current?.reset();
       setError('We could not reach the server. Please try again in a moment.');
       setState('idle');
     }
@@ -260,19 +282,17 @@ export default function NewsletterSignup({
         )}
 
         {/*
-          Turnstile is rendered here rather than script-loaded per placement:
-          the widget attaches to the surrounding form and injects the hidden
-          input the submit handler reads. With no site key it is skipped and
-          the server skips verification to match.
+          With no site key the widget is skipped and the server skips
+          verification to match, so the form still works before the Cloudflare
+          account exists.
         */}
         {turnstileSiteKey && (
-          <>
-            <Script
-              src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-              strategy="lazyOnload"
-            />
-            <div className="mt-3 cf-turnstile" data-sitekey={turnstileSiteKey} />
-          </>
+          <Turnstile
+            ref={turnstileRef}
+            siteKey={turnstileSiteKey}
+            tone={isDark ? 'dark' : 'light'}
+            action="so we cannot sign you up"
+          />
         )}
       </form>
     </div>

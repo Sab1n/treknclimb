@@ -144,7 +144,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { error: 'We could not verify that you are human. Please reload and try again.' },
+      {
+        // Not "reload": the form resets the check in place. See the booking route.
+        error:
+          'We could not confirm that you are a person. The check has been reset — please try again.',
+      },
       { status: 400 }
     );
   }
