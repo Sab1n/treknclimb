@@ -2,6 +2,7 @@ import Link from 'next/link';
 import CloudinaryImage from '../ui/CloudinaryImage';
 import { tripPath } from '../../lib/urls';
 import { ITripPopulated } from '../../models/Trip';
+import { nepalToday, tripFromPrice } from '../../lib/departures';
 
 const usd = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -19,8 +20,22 @@ const usd = new Intl.NumberFormat('en-US', {
  * The price renders statically in USD. Client-side conversion comes later, so
  * the price sits in a fixed-min-width container now: when a longer string like
  * "NPR 185,000" replaces it after hydration, the card must not reflow.
+ *
+ * ## The "from" price is `tripFromPrice`, like everywhere else
+ *
+ * Not `trip.price`. The flat price is the admin's anchor, and it is not what
+ * the trip page offers: a card reading $1,295 linking to a page reading $1,245
+ * is the same trip quoted twice. One function decides the figure here, on the
+ * page, in the /trips sort and in the `Offer` in structured data.
+ *
+ * `today` is Pokhara's date at the moment the listing was generated. A
+ * departure passing can therefore make a card stale until the page
+ * revalidates — an hour at most, and only ever by showing a price that is too
+ * low, never too high.
  */
-export default function TripCard({ trip }: { trip: ITripPopulated }) {
+export default function TripCard({ trip, today = nepalToday() }: { trip: ITripPopulated; today?: string }) {
+  const fromPrice = tripFromPrice(trip, today);
+
   return (
     <article className="group h-full overflow-hidden rounded-lg border border-hairline bg-white transition-shadow hover:shadow-md">
       <Link href={tripPath(trip)} className="flex h-full flex-col">
@@ -64,7 +79,8 @@ export default function TripCard({ trip }: { trip: ITripPopulated }) {
 
           <div className="mt-4 flex flex-1 items-end justify-between gap-3">
             <p className="min-w-[7rem] font-mono text-lg font-semibold tabular">
-              {usd.format(trip.price)}
+              <span className="text-xs font-normal text-muted">from </span>
+              {usd.format(fromPrice)}
               <span className="ml-1 text-xs font-normal text-muted">pp</span>
             </p>
             <span className="text-sm font-semibold underline-offset-4 group-hover:underline">

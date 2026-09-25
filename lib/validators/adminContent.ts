@@ -184,6 +184,32 @@ export const adminRegionSchema = z.object({
 export type AdminRegionInput = z.input<typeof adminRegionSchema>;
 
 /**
+ * The blog category editor.
+ *
+ * The smallest of these schemas, and deliberately so: a category is a label
+ * with a URL. `description` is optional because an archive of six posts
+ * under a clear heading needs no paragraph explaining what the heading means,
+ * and a required field invites one to be written anyway.
+ *
+ * The slug goes through `contentSlugSchema` like every other, which puts it
+ * against the reserved list — `category` itself is on that list, and a
+ * category slugged `category` would sit at `/blog/category/category` while
+ * a post slugged `category` shadows the whole archive subtree. The model
+ * carries the same validator, and that is the one that actually guarantees it.
+ */
+export const adminBlogCategorySchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(120),
+  slug: contentSlugSchema,
+  description: optionalText(2000),
+  displayOrder: displayOrderSchema,
+
+  ...seoFields,
+});
+
+export type AdminBlogCategoryInput = z.input<typeof adminBlogCategorySchema>;
+
+
+/**
  * An optional ObjectId reference arriving from a select.
  *
  * `''` is what the "None" option submits, and it has to become `null` rather

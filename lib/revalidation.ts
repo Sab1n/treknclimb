@@ -668,3 +668,53 @@ export async function blogPostPaths(options: {
 
   return paths;
 }
+
+/**
+ * Everything a blog category's own edit can make stale.
+ *
+ * Its archive, the blog index (whose category pills carry the name), the
+ * homepage (three recent post cards, each labelled with its category) — and
+ * **every post filed under it**, because a post page prints its category name
+ * twice and links to the archive. A rename that purged only the archive would
+ * leave every post in the category linking to a 301 under the old name for the
+ * revalidate window.
+ *
+ * Drafts are excluded from the post lookup: they have no page to purge.
+ *
+ * Pass `previousSlug` on a rename — the old archive URL has to be purged too,
+ * or the cached page goes on serving the content the 301 is now redirecting
+ * away from.
+ */
+export async function blogCategoryPaths(options: {
+  id: string;
+  slug: string;
+  previousSlug?: string;
+}): Promise<string[]> {
+  await connectDB();
+
+  const paths = new Set<string>([
+    `/blog/category/${options.slug}`,
+    '/blog',
+    '/',
+  ]);
+
+  if (options.previousSlug && options.previousSlug !== options.slug) {
+    paths.add(`/blog/category/${options.previousSlug}`);
+  }
+
+  try {
+    const posts = await BlogPost.find({
+      category: options.id,
+      status: 'published',
+    })
+      .select('slug')
+      .lean<{ slug: string }[]>()
+      .exec();
+
+    for (const post of posts) paths.add(`/blog/${post.slug}`);
+  } catch {
+    // A malformed id throws a CastError. The listings above still purge.
+  }
+
+  return [...paths];
+}

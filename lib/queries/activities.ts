@@ -3,6 +3,7 @@ import { connectDB } from '../db';
 import Activity, { IActivityPopulated } from '../../models/Activity';
 import Trip, { ITripPopulated, TripDifficulty } from '../../models/Trip';
 import Destination from '../../models/Destination';
+import { nepalToday, tripFromPrice, type PricedTrip } from '../departures';
 
 /*
  * The `Destination` import above is load-bearing twice over. It is queried
@@ -78,6 +79,13 @@ export async function getActivityRoutes(): Promise<
  * `maxAltitudeM`, `difficulty` — simply do not contribute rather than
  * poisoning the range with nulls. An activity with no published trips gets no
  * row at all, and the caller renders dashes.
+ *
+ * **The price range is the exception**, and deliberately not a `$min`/`$max`
+ * over `price`. What a visitor is shown for a trip is `tripFromPrice()` — the
+ * lower of its cheapest upcoming departure and its cheapest private tier — so
+ * an activity range built from the flat price would bracket numbers no card on
+ * the site displays. The pricing inputs are pushed out of the group and the
+ * range is taken in JS, from the same function every card calls.
  */
 export interface ActivityStats {
   tripCount: number;
@@ -109,11 +117,10 @@ export const getActivityStats = cache(
       tripCount: number;
       minDuration: number | null;
       maxDuration: number | null;
-      minPrice: number | null;
-      maxPrice: number | null;
       minAltitudeM: number | null;
       maxAltitudeM: number | null;
       difficulties: (TripDifficulty | null)[];
+      priced: PricedTrip[];
     }>([
       { $match: { destination: destinationId, status: 'published' } },
       {
@@ -122,8 +129,14 @@ export const getActivityStats = cache(
           tripCount: { $sum: 1 },
           minDuration: { $min: '$durationDays' },
           maxDuration: { $max: '$durationDays' },
-          minPrice: { $min: '$price' },
-          maxPrice: { $max: '$price' },
+          priced: {
+            $push: {
+              price: '$price',
+              durationDays: '$durationDays',
+              groupPricing: '$groupPricing',
+              departureSeasons: '$departureSeasons',
+            },
+          },
           minAltitudeM: { $min: '$maxAltitudeM' },
           maxAltitudeM: { $max: '$maxAltitudeM' },
           difficulties: { $addToSet: '$difficulty' },
@@ -131,17 +144,23 @@ export const getActivityStats = cache(
       },
     ]);
 
+    // One Pokhara date for every activity in this listing.
+    const today = nepalToday();
+
     return new Map(
       rows
         .filter((row) => row._id !== null)
-        .map((row) => [
+        .map((row) => {
+          const fromPrices = row.priced.map((trip) => tripFromPrice(trip, today));
+
+          return [
           String(row._id),
           {
             tripCount: row.tripCount,
             minDuration: row.minDuration ?? null,
             maxDuration: row.maxDuration ?? null,
-            minPrice: row.minPrice ?? null,
-            maxPrice: row.maxPrice ?? null,
+            minPrice: fromPrices.length > 0 ? Math.min(...fromPrices) : null,
+            maxPrice: fromPrices.length > 0 ? Math.max(...fromPrices) : null,
             minAltitudeM: row.minAltitudeM ?? null,
             maxAltitudeM: row.maxAltitudeM ?? null,
             // A trip with no difficulty contributes nothing rather than a null
@@ -150,7 +169,8 @@ export const getActivityStats = cache(
               (grade): grade is TripDifficulty => grade != null
             ),
           },
-        ])
+        ] as const;
+        })
     );
   }
 );

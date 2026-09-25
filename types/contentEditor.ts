@@ -1,6 +1,7 @@
 import type { IDestination } from '../models/Destination';
 import type { IActivity } from '../models/Activity';
 import type { IRegion } from '../models/Region';
+import type { IBlogCategory } from '../models/BlogCategory';
 import type { ITestimonial } from '../models/Testimonial';
 import type { IFaq } from '../models/Faq';
 import type { ITeamMember } from '../models/TeamMember';
@@ -175,6 +176,59 @@ export const emptyRegion: RegionEditorValues = {
   description: '',
   coverImage: '',
   coverImageAlt: '',
+  displayOrder: '0',
+
+  metaTitle: '',
+  metaDescription: '',
+  canonicalUrl: '',
+  ogTitle: '',
+  ogDescription: '',
+  ogImage: '',
+  schemaType: '',
+  noIndex: false,
+};
+
+/**
+ * A blog category, as the editor holds it.
+ *
+ * No image and no publish status. A category is a **taxonomy record**, not a
+ * page of content: its archive is generated from the posts filed under it, so
+ * there is nothing to draft and nothing to illustrate. `description` is the
+ * one piece of copy, and it is optional — most archives read perfectly well
+ * as a heading and a list.
+ */
+export interface BlogCategoryEditorValues extends SeoEditorValues {
+  name: string;
+  slug: string;
+  description: string;
+  displayOrder: string;
+}
+
+export function toBlogCategoryValues(
+  category: IBlogCategory
+): BlogCategoryEditorValues {
+  return {
+    name: text(category.name),
+    slug: text(category.slug),
+    description: text(category.description),
+    displayOrder: numeric(category.displayOrder),
+
+    metaTitle: text(category.metaTitle),
+    metaDescription: text(category.metaDescription),
+    canonicalUrl: text(category.canonicalUrl),
+    ogTitle: text(category.ogTitle),
+    ogDescription: text(category.ogDescription),
+    ogImage: text(category.ogImage),
+    schemaType: text(category.schemaType),
+    noIndex: !!category.noIndex,
+  };
+}
+
+/** A blank category, for the create form. */
+export const emptyBlogCategory: BlogCategoryEditorValues = {
+  name: '',
+  slug: '',
+  description: '',
   displayOrder: '0',
 
   metaTitle: '',

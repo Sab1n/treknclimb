@@ -4,8 +4,10 @@ import type { TripFilterMeta } from '../lib/tripFilters';
 import type { TripDifficulty } from '../models/Trip';
 import { GRADE_ORDER } from '../lib/difficultyGrades';
 import {
+  nepalToday,
   toIsoDate,
   toSeasonView,
+  tripFromPrice,
   currentBlackouts,
   privateFromPrice,
   type SeasonView,
@@ -143,7 +145,12 @@ export function toTripFilterMeta(
    *
    * Defaults to empty so a caller with no regions in play is unaffected.
    */
-  regionSlugById: ReadonlyMap<string, string> = new Map()
+  regionSlugById: ReadonlyMap<string, string> = new Map(),
+  /**
+   * Pokhara's date, so every card in one listing prices against one instant.
+   * Defaulted so existing callers are unaffected.
+   */
+  today: string = nepalToday()
 ): TripFilterMeta {
   return {
     id: String(trip._id),
@@ -155,7 +162,12 @@ export function toTripFilterMeta(
       : null,
     durationDays: trip.durationDays,
     difficulty: trip.difficulty ?? null,
-    price: trip.price,
+    /*
+     * The "from" price, not the flat one — this drives the price filter
+     * buckets and the price sort on /trips, and sorting by a number the cards
+     * do not show is a listing that looks mis-sorted.
+     */
+    price: tripFromPrice(trip, today),
     featured: trip.featured,
     displayOrder: trip.displayOrder,
   };

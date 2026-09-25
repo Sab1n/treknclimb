@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 import PostBody from './PostBody';
 import ArticleToc from './ArticleToc';
-import { parseLongForm } from '../../lib/longForm';
+import { parseLongForm, type LongFormSection } from '../../lib/longForm';
 
 /**
  * The composed long-form section.
@@ -67,62 +67,7 @@ export default function LongFormArticle({
 
       <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_15rem] lg:gap-14">
         <div className="min-w-0">
-          {sections.map((section, index) => (
-            <section key={section.id} id={section.id} className="scroll-mt-24">
-              {/*
-                The divider. A rule plus a number rather than a bare `<hr>`:
-                the number is what makes four sections read as an ordered set,
-                and it costs nothing because the index is already here.
-
-                Not on the first section — a divider above the opening heading
-                separates it from the lede it belongs to.
-              */}
-              {index > 0 && (
-                <div
-                  aria-hidden="true"
-                  className="mb-10 mt-12 flex items-center gap-4"
-                >
-                  <span className="font-mono text-xs text-muted tabular">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <span className="h-px flex-1 bg-hairline" />
-                </div>
-              )}
-
-              <h3 className="max-w-prose font-display text-xl font-extrabold tracking-display sm:text-2xl">
-                {section.heading}
-              </h3>
-
-              {section.pullQuote && (
-                /*
-                  Set large and hung off the left edge on wide screens with a
-                  negative margin, so it breaks the measure rather than sitting
-                  politely inside it. That break is the entire point — a pull
-                  quote that respects the column is just a bigger paragraph.
-                */
-                <blockquote className="my-8 border-l-2 border-marigold py-1 pl-5 lg:-ml-6">
-                  <p className="max-w-prose font-display text-xl font-extrabold leading-snug tracking-display text-ink sm:text-2xl">
-                    {section.pullQuote}
-                  </p>
-                </blockquote>
-              )}
-
-              <div className="mt-5 max-w-prose">
-                <PostBody body={section.body} />
-              </div>
-
-              {/*
-                The aside, inline on mobile, dropped into the middle of the
-                article rather than after it. `Math.floor(length / 2)` rather
-                than a fixed index — the placement has to hold at four sections
-                and at nine, and hard-coding "after the second" is exactly the
-                count assumption that breaks when the client rewrites this.
-              */}
-              {aside && index === Math.floor(sections.length / 2) - 1 && (
-                <div className="mt-10 max-w-prose lg:hidden">{aside}</div>
-              )}
-            </section>
-          ))}
+          <LongFormSections sections={sections} aside={aside} />
         </div>
 
         {/*
@@ -145,5 +90,96 @@ export default function LongFormArticle({
         </aside>
       </div>
     </div>
+  );
+}
+
+/**
+ * The sections themselves: numbered dividers, pull quotes and bodies.
+ *
+ * Split out of `LongFormArticle` when the blog post page needed the same
+ * treatment in a layout of its own — a post has a title, a hero image, related
+ * trips and a newsletter block around its body, so it cannot hand the whole
+ * page to `LongFormArticle` the way the activities page does. Both callers
+ * render identical sections because this is the only code that renders one.
+ *
+ * ## The heading level is a prop, and it has to be
+ *
+ * On the activities page these sections sit under `LongFormArticle`'s own
+ * `h2`, so a section heading is an `h3`. On a blog post there is no such
+ * heading — the post's title is the `h1` and a section is the next level
+ * down. Hard-coding `h3` would make every post's outline skip a level, which
+ * is a real accessibility defect rather than a styling preference: a screen
+ * reader's heading list is how someone navigates a long article, and a missing
+ * level reads as a missing section.
+ */
+export function LongFormSections({
+  sections,
+  aside,
+  /** 3 under a section heading of its own, 2 directly under the page's h1. */
+  level = 3,
+}: {
+  sections: LongFormSection[];
+  /** Rendered inline mid-article on mobile only; the caller places the rest. */
+  aside?: ReactNode;
+  level?: 2 | 3;
+}) {
+  const Heading = level === 2 ? 'h2' : 'h3';
+
+  return (
+    <>
+      {sections.map((section, index) => (
+        <section key={section.id} id={section.id} className="scroll-mt-24">
+          {/*
+            The divider. A rule plus a number rather than a bare `<hr>`: the
+            number is what makes four sections read as an ordered set, and it
+            costs nothing because the index is already here.
+
+            Not on the first section — a divider above the opening heading
+            separates it from the lede it belongs to.
+          */}
+          {index > 0 && (
+            <div aria-hidden="true" className="mb-10 mt-12 flex items-center gap-4">
+              <span className="font-mono text-xs text-muted tabular">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <span className="h-px flex-1 bg-hairline" />
+            </div>
+          )}
+
+          <Heading className="max-w-prose font-display text-xl font-extrabold tracking-display sm:text-2xl">
+            {section.heading}
+          </Heading>
+
+          {section.pullQuote && (
+            /*
+              Set large and hung off the left edge on wide screens with a
+              negative margin, so it breaks the measure rather than sitting
+              politely inside it. That break is the entire point — a pull quote
+              that respects the column is just a bigger paragraph.
+            */
+            <blockquote className="my-8 border-l-2 border-marigold py-1 pl-5 lg:-ml-6">
+              <p className="max-w-prose font-display text-xl font-extrabold leading-snug tracking-display text-ink sm:text-2xl">
+                {section.pullQuote}
+              </p>
+            </blockquote>
+          )}
+
+          <div className="mt-5 max-w-prose">
+            <PostBody body={section.body} />
+          </div>
+
+          {/*
+            The aside, inline on mobile, dropped into the middle of the article
+            rather than after it. `Math.floor(length / 2)` rather than a fixed
+            index — the placement has to hold at four sections and at nine, and
+            hard-coding "after the second" is exactly the count assumption that
+            breaks when the client rewrites this.
+          */}
+          {aside && index === Math.floor(sections.length / 2) - 1 && (
+            <div className="mt-10 max-w-prose lg:hidden">{aside}</div>
+          )}
+        </section>
+      ))}
+    </>
   );
 }

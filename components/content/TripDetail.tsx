@@ -17,12 +17,7 @@ import {
   toElevationPoints,
   toBookingRail,
 } from '../../types/dto';
-import {
-  nepalToday,
-  generateDepartures,
-  groupFromPrice,
-  headlineFromPrice,
-} from '../../lib/departures';
+import { nepalToday, tripFromPrice } from '../../lib/departures';
 import { jsonLdScript } from '../../lib/jsonLd';
 
 const SITE_URL = 'https://treknclimb.com';
@@ -61,13 +56,15 @@ export default function TripDetail({
    * in the browser. The mobile bar shows the same headline figure, computed by
    * the same two functions, so the two prices on one page cannot disagree.
    */
-  const rail = toBookingRail(trip, nepalToday());
-  const headlinePrice = headlineFromPrice(
-    groupFromPrice(
-      generateDepartures(rail.seasons, rail.durationDays, rail.today)
-    ),
-    rail.privateFrom
-  );
+  const today = nepalToday();
+  const rail = toBookingRail(trip, today);
+
+  /*
+   * The one "from" price. The same call the cards make — including the cards
+   * for related trips further down this very page — so nothing on the site
+   * quotes this trip at two figures.
+   */
+  const headlinePrice = tripFromPrice(trip, today);
 
   const seasonLabel =
     trip.bestMonths.length > 0
@@ -88,7 +85,13 @@ export default function TripDetail({
     touristType: trip.difficulty ? `${trip.difficulty} grade` : undefined,
     offers: {
       '@type': 'Offer',
-      price: trip.price,
+      /*
+       * The same figure the page shows. Structured data still always emits
+       * **USD** — that rule is about the currency, not about which price —
+       * and a rich result quoting a price the page does not show is the kind
+       * of mismatch that costs the result.
+       */
+      price: headlinePrice,
       priceCurrency: 'USD',
       availability: 'https://schema.org/InStock',
       url: `${SITE_URL}${canonicalPath}`,

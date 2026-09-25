@@ -119,3 +119,72 @@ export async function PATCH(
     statusUpdatedAt: booking.statusUpdatedAt,
   });
 }
+
+/**
+ * DELETE /api/admin/bookings/[id] — erase one inquiry, permanently.
+ *
+ * ## Why an inquiry can be deleted when a published trip cannot
+ *
+ * They are opposite kinds of record. A published trip is a URL that has been
+ * crawled and linked, so it is archived rather than deleted; an inquiry is
+ * **personal data**, and the privacy policy promises it can be erased on
+ * request. Until now honouring that request meant someone opening the
+ * database, which is the sort of promise a system keeps only by accident.
+ *
+ * So this is a real delete, not a soft one. A "deleted" flag would leave the
+ * name, email, phone and message exactly where they were — the thing the
+ * person asked to have removed — and a screen that hid it would only make the
+ * company believe it had complied.
+ *
+ * ## What is deliberately not cleaned up
+ *
+ * - **The reference sequence.** `Counters` is not rewound: two inquiries must
+ *   never share a reference, and a gap in the numbering costs nothing. The
+ *   reference is an identifier, not a count.
+ * - **Nothing points at a BookingRequest.** No other document holds its id, so
+ *   there are no references to clear first — unlike a trip delete, which
+ *   clears four.
+ *
+ * The deletion is logged with the reference and nothing else: enough to answer
+ * "was this erased, and when", with none of the data that was erased.
+ */
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdmin();
+  } catch {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  const origin = request.headers.get('origin');
+  const host = request.headers.get('host');
+
+  if (origin && new URL(origin).host !== host) {
+    return new NextResponse(null, { status: 403 });
+  }
+
+  const { id } = await params;
+
+  await connectDB();
+
+  let booking;
+
+  try {
+    booking = await BookingRequest.findById(id).select('reference');
+  } catch {
+    // A malformed id is a 404, not a 500.
+    return new NextResponse(null, { status: 404 });
+  }
+
+  if (!booking) return new NextResponse(null, { status: 404 });
+
+  const { reference } = booking;
+
+  await booking.deleteOne();
+
+  console.warn(`[admin/bookings] Inquiry ${reference} was deleted permanently.`);
+
+  return NextResponse.json({ ok: true, reference });
+}

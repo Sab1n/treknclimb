@@ -17,6 +17,7 @@ import {
   AddRowButton,
   updateRow,
 } from './trip/RepeatableList';
+import ImageField from './ImageField';
 import UnsavedChangesGuard from './UnsavedChangesGuard';
 import SaveBar from './SaveBar';
 import { TextField, TextAreaField, SelectField, FieldRow } from './fields';
@@ -697,17 +698,55 @@ export default function SettingsEditor({
 
         {/* ============ affiliations ============ */}
         <Section
-          title="Affiliation registration numbers"
-          renders="About · Structured data"
-          note="Four fixed bodies, seeded once. Only the number is editable here — the name, website and logo are facts about an external organisation and are not yours to change. A blank number renders as “to be confirmed” rather than being faked."
+          title="Affiliations"
+          renders="About · Every page footer · Structured data"
+          note="Four fixed bodies, seeded once. The logo and the registration number are the two things you have and the site does not — the name, abbreviation and website are facts about an external organisation and are not yours to change here. Both fields render as nothing until they are filled in: no logo shows the abbreviation as a mark, and no number shows no number."
         >
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-8">
             {values.affiliations.map((affiliation, index) => (
-              <FieldRow key={affiliation.id}>
-                <div className="self-center">
+              <div
+                key={affiliation.id}
+                className="flex flex-col gap-4 border-b border-hairline pb-8 last:border-0 last:pb-0"
+              >
+                <div>
                   <p className="text-sm font-semibold">{affiliation.name}</p>
                   <p className="text-xs text-muted">{affiliation.abbreviation}</p>
                 </div>
+
+                {/*
+                  Optional, so the alt text is required only once a logo is
+                  there — the same conditional rule the model applies. The
+                  Cloudinary folder is keyed to the abbreviation rather than a
+                  slug, because an affiliation has no slug.
+                */}
+                <ImageField
+                  label="Logo"
+                  id={`affiliation-${affiliation.id}-logo`}
+                  collection="affiliations"
+                  recordId={affiliation.id}
+                  publicId={affiliation.logo}
+                  alt={affiliation.logoAlt}
+                  onPublicIdChange={(v) =>
+                    set(
+                      'affiliations',
+                      values.affiliations.map((row) =>
+                        row.id === affiliation.id ? { ...row, logo: v } : row
+                      )
+                    )
+                  }
+                  onAltChange={(v) =>
+                    set(
+                      'affiliations',
+                      values.affiliations.map((row) =>
+                        row.id === affiliation.id ? { ...row, logoAlt: v } : row
+                      )
+                    )
+                  }
+                  hint="A transparent PNG or SVG-exported PNG reads best — it sits on both the white body strip and the dark footer. Until one is here the abbreviation is shown instead."
+                  errors={errors}
+                  publicIdField={`affiliations.${index}.logo`}
+                  altField={`affiliations.${index}.logoAlt`}
+                />
 
                 <TextField
                   label="Registration number"
@@ -725,8 +764,9 @@ export default function SettingsEditor({
                     )
                   }
                   error={errors[`affiliations.${index}.registrationNumber`]}
+                  hint="Shown on the About page. Left blank, nothing is shown — never a placeholder."
                 />
-              </FieldRow>
+              </div>
             ))}
 
             {values.affiliations.length === 0 && (
@@ -906,6 +946,8 @@ function toPayload(values: SettingsEditorValues) {
     socialLinks: strip(values.socialLinks),
     affiliations: values.affiliations.map((row) => ({
       id: row.id,
+      logo: row.logo,
+      logoAlt: row.logoAlt,
       registrationNumber: row.registrationNumber,
     })),
   };

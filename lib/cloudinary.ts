@@ -79,6 +79,7 @@ export const UPLOAD_COLLECTIONS = [
   'team',
   'blog',
   'regions',
+  'affiliations',
 ] as const;
 
 export type UploadCollection = (typeof UPLOAD_COLLECTIONS)[number];

@@ -108,7 +108,7 @@ export default async function AdminInquiriesPage({
     <div className="flex flex-col gap-8">
       <PageHeading
         title="Booking inquiries"
-        description="Every inquiry submitted through the site. Nothing here is deleted — a closed inquiry stays on the list, because this is the record of the only conversion event the site has."
+        description="Every inquiry submitted through the site. A closed inquiry stays on the list — this is the record of the only conversion event the site has. The one thing that removes an inquiry is a customer asking for their data to be erased, on the inquiry's own screen."
         actions={
           <ButtonLink
             download

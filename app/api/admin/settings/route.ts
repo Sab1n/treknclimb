@@ -218,7 +218,7 @@ export async function PATCH(request: Request) {
   }
 
   /*
-   * --- the four affiliation registration numbers ---
+   * --- the four affiliations' logos and registration numbers ---
    *
    * A separate collection, saved by the same screen because they are four
    * fields the client fills in once. Addressed by id, never by position: a
@@ -239,11 +239,16 @@ export async function PATCH(request: Request) {
       // failed: the rest of the save is already stored and correct.
       if (!affiliation) continue;
 
-      if ((affiliation.registrationNumber ?? '') === (row.registrationNumber ?? '')) {
-        continue;
-      }
+      const unchanged =
+        (affiliation.registrationNumber ?? '') === (row.registrationNumber ?? '') &&
+        (affiliation.logo ?? '') === (row.logo ?? '') &&
+        (affiliation.logoAlt ?? '') === (row.logoAlt ?? '');
+
+      if (unchanged) continue;
 
       affiliation.registrationNumber = row.registrationNumber;
+      affiliation.logo = row.logo;
+      affiliation.logoAlt = row.logoAlt;
       await affiliation.save();
       affiliationsChanged = true;
     }

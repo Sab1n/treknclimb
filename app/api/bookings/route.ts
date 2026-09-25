@@ -214,8 +214,18 @@ export async function POST(request: Request) {
     if (trip) {
       tripId = trip._id;
       tripTitle = trip.title;
-      // The visitor's choice, as made. The schema has already required one.
-      tripType = data.tripType ?? null;
+      /*
+       * The visitor's choice as made. The form always sends one — it is
+       * pre-selected from how they arrived and they can change it — so a
+       * missing value means something that is not our form posted this.
+       *
+       * The one thing read from the payload rather than left null: a
+       * `departureId` **is** a group choice. That is not inferring a type from
+       * a date; it is a specific departure the caller named, and storing the
+       * departure while calling the inquiry typeless would contradict the
+       * model's own pairing rule.
+       */
+      tripType = data.tripType ?? (data.departureId ? 'group' : null);
 
       /*
        * A group inquiry: check the departure against the seasons as they are

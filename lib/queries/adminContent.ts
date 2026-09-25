@@ -10,7 +10,7 @@ import Testimonial, {
 import Faq, { IFaq, IFaqPopulated } from '../../models/Faq';
 import TeamMember, { ITeamMember } from '../../models/TeamMember';
 import BlogPost, { IBlogPost, IBlogPostPopulated } from '../../models/BlogPost';
-import BlogCategory from '../../models/BlogCategory';
+import BlogCategory, { IBlogCategory } from '../../models/BlogCategory';
 
 /*
  * Side-effect import: `.populate('destination')` resolves the ref by model
@@ -470,4 +470,120 @@ export async function isBlogSlugTaken(
     .exec();
 
   return !!existing && String(existing._id) !== exceptId;
+}
+
+/* ------------------------------------------------------------------ *
+ * Blog categories
+ * ------------------------------------------------------------------ */
+
+/**
+ * Every category, in display order then name.
+ *
+ * Two sort keys rather than one: `displayOrder` defaults to 0, so a list
+ * where nobody has set it is entirely ties, and a tie-break MongoDB does not
+ * specify means the order changes between loads for no reason anyone can see.
+ */
+export async function getBlogCategoriesForAdmin(): Promise<IBlogCategory[]> {
+  await connectDB();
+
+  return BlogCategory.find()
+    .sort({ displayOrder: 1, name: 1 })
+    .lean<IBlogCategory[]>()
+    .exec();
+}
+
+export async function getBlogCategoryForEdit(
+  id: string
+): Promise<IBlogCategory | null> {
+  await connectDB();
+
+  try {
+    return await BlogCategory.findById(id).lean<IBlogCategory>().exec();
+  } catch {
+    // A malformed id throws a CastError rather than returning null.
+    return null;
+  }
+}
+
+/** Slugs are unique per collection, so a category only collides with one. */
+export async function isBlogCategorySlugTaken(
+  slug: string,
+  excludeId?: string
+): Promise<boolean> {
+  await connectDB();
+
+  const existing = await BlogCategory.findOne({ slug: slug.toLowerCase().trim() })
+    .select('_id')
+    .lean<{ _id: unknown }>()
+    .exec();
+
+  if (!existing) return false;
+
+  return !excludeId || String(existing._id) !== excludeId;
+}
+
+/**
+ * How many posts are filed under a category, and how many of those are live.
+ *
+ * **Every post, not only the published ones.** `BlogPost.category` is
+ * required and not nullable, so deleting a category a draft points at leaves
+ * that draft unopenable — `populate('category')` returns null and the editor
+ * has nothing to put in its select. A draft is exactly the post nobody would
+ * think to check, which is why the delete guard counts it.
+ *
+ * The published figure is carried alongside for the list, where "4 posts, 3
+ * live" is the useful line.
+ */
+export async function countPostsForCategory(
+  categoryId: string
+): Promise<{ total: number; published: number }> {
+  await connectDB();
+
+  try {
+    const [total, published] = await Promise.all([
+      BlogPost.countDocuments({ category: categoryId }),
+      BlogPost.countDocuments({ category: categoryId, status: 'published' }),
+    ]);
+
+    return { total, published };
+  } catch {
+    // A malformed id throws a CastError. No category, no posts.
+    return { total: 0, published: 0 };
+  }
+}
+
+/**
+ * Post counts for every category in one aggregation.
+ *
+ * The list screen would otherwise pay two `countDocuments` round trips per
+ * row to Atlas in Mumbai, on a page that is `force-dynamic` and so pays them
+ * on every load.
+ */
+export async function getPostCountsForAdmin(): Promise<
+  Map<string, { total: number; published: number }>
+> {
+  await connectDB();
+
+  const rows = await BlogPost.aggregate<{
+    _id: unknown;
+    total: number;
+    published: number;
+  }>([
+    {
+      $group: {
+        _id: '$category',
+        total: { $sum: 1 },
+        published: {
+          $sum: { $cond: [{ $eq: ['$status', 'published'] }, 1, 0] },
+        },
+      },
+    },
+  ]);
+
+  return new Map(
+    rows.map((row) => [
+      String(row._id),
+      { total: row.total, published: row.published },
+    ])
+  );
 }

@@ -50,17 +50,22 @@ export interface SocialRow extends EditorRow {
 }
 
 /**
- * One affiliation's registration number.
+ * One affiliation's logo and registration number.
  *
- * Only the number is editable. Name, abbreviation, URL and logo are seeded
- * facts about four external bodies that do not change, and making them
- * editable would invite a typo in something that feeds `memberOf` in structured
- * data. The number is the one field the client has and we do not.
+ * Name, abbreviation and URL stay read-only: they are seeded facts about four
+ * external bodies that do not change, and making them editable would invite a
+ * typo in something that feeds `memberOf` in structured data.
+ *
+ * The logo and the number are the two things the client has and we do not, so
+ * they are the two that are editable. Both are blank today, and both render as
+ * nothing rather than as a placeholder until they are filled in.
  */
 export interface AffiliationRow {
   id: string;
   name: string;
   abbreviation: string;
+  logo: string;
+  logoAlt: string;
   registrationNumber: string;
 }
 
@@ -204,6 +209,8 @@ export function toSettingsValues(
       id: String(affiliation._id),
       name: affiliation.name,
       abbreviation: affiliation.abbreviation,
+      logo: text(affiliation.logo),
+      logoAlt: text(affiliation.logoAlt),
       registrationNumber: text(affiliation.registrationNumber),
     })),
   };

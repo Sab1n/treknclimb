@@ -5,6 +5,7 @@ import { requireAdmin } from '../../../../../lib/adminAuth';
 import { connectDB } from '../../../../../lib/db';
 import Trip from '../../../../../models/Trip';
 import Region from '../../../../../models/Region';
+import Affiliation from '../../../../../models/Affiliation';
 import Activity from '../../../../../models/Activity';
 import Destination from '../../../../../models/Destination';
 import Testimonial from '../../../../../models/Testimonial';
@@ -81,6 +82,12 @@ const MODELS: Record<UploadCollection, Model<any>> = {
   team: TeamMember,
   blog: BlogPost,
   regions: Region,
+  /*
+   * An affiliation has no slug, so the fallback below files its logo under the
+   * record's id — the same case as a testimonial, and the reason that fallback
+   * exists.
+   */
+  affiliations: Affiliation,
 };
 
 export async function POST(request: Request) {

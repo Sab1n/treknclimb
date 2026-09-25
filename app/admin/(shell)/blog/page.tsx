@@ -218,9 +218,15 @@ export default async function AdminBlogPage() {
       </div>
 
       <p className="max-w-prose text-sm text-muted">
-        There is no category editor yet, so the four seeded categories are what a
-        post can be filed under. Renaming a published post records a 301 from its
-        old URL automatically.
+        Every post is filed under exactly one category. Add or rename one in{' '}
+        <Link
+          href="/admin/blog/categories"
+          className="underline underline-offset-4"
+        >
+          Blog categories
+        </Link>
+        . Renaming a published post records a 301 from its old URL
+        automatically.
       </p>
     </div>
   );

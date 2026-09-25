@@ -3,12 +3,17 @@
 import { useState, type ReactNode } from 'react';
 
 import Calendar, { type CalendarMark } from '../ui/Calendar';
-import { departureOnDate, groupFromPrice, type Departure } from '../../lib/departures';
+import {
+  departureOnDate,
+  groupFromPrice,
+  monthLabel,
+  type Departure,
+} from '../../lib/departures';
 import { formatDepartureRange } from '../../lib/bookingDeparture';
 import { DEPARTURE_STATUS_LABELS } from '../../models/shared/departures';
 
 /**
- * Choosing a group departure: the "from $X this month" line, the calendar and
+ * Choosing a group departure: the "September departures from $X" line, the calendar and
  * its legend — and, separately, the summary of the departure chosen.
  *
  * ## Where it is used
@@ -124,6 +129,7 @@ export function DeparturePicker({
   const [visibleMonth, setVisibleMonth] = useState(openOn.slice(0, 7));
 
   const monthFrom = groupFromPrice(departures, visibleMonth);
+  const month = monthLabel(visibleMonth, today);
   const monthHasDepartures = departures.some((departure) =>
     departure.date.startsWith(visibleMonth)
   );
@@ -132,22 +138,23 @@ export function DeparturePicker({
     <div>
       {/*
         Live, so paging to another month reads the new line out. It is the
-        only place a price appears above the grid, and it is about the month
-        on screen.
+        only place a price appears above the grid, and it names the month it
+        is about — "this month" beside a headline "from" price reads as a
+        contradiction rather than as two different questions.
       */}
       <p aria-live="polite" className={`mb-2 text-sm ${colours.muted}`}>
         {monthFrom !== null ? (
           <>
-            Group departures from{' '}
+            {month} departures from{' '}
             <span className={`font-mono font-semibold tabular ${colours.strong}`}>
               {usd.format(monthFrom)}
-            </span>{' '}
-            this month.
+            </span>
+            .
           </>
         ) : monthHasDepartures ? (
-          'Every group departure this month is full or closed.'
+          `Every ${month} departure is full or closed.`
         ) : (
-          'No group departures this month.'
+          `No ${month} departures.`
         )}
       </p>
 

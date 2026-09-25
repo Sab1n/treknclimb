@@ -44,3 +44,83 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * The rich text editor's own surface.
+ *
+ * ProseMirror renders real `h2`, `ul`, `blockquote` and `a` elements, and
+ * Tailwind's Preflight strips every default off all of them — so in the
+ * editor a heading looked exactly like a paragraph and a bullet list had no
+ * bullets. That is fine on the public site, where each element is given a
+ * class by `PostBody`; it is not fine here, because the editor has no classes
+ * to give and the admin's only way to tell whether a toolbar button worked is
+ * to see the text change.
+ *
+ * Deliberately **not** a copy of `PostBody`. The editor is a 14px working
+ * surface in a panel, not an article: the rules below reuse the same
+ * signals — display face for headings, marigold rule on a quote — at a size
+ * that does not make a heading in a form field look like a page title. Sizes
+ * are in `rem` against the editor's own `text-sm`, so H2 reads clearly larger
+ * than H3 and both read clearly larger than body text.
+ *
+ * Kept in CSS rather than in the component because these apply to nodes
+ * ProseMirror creates and React never sees.
+ */
+.prose-editor > * + * {
+  margin-top: 0.75rem;
+}
+
+.prose-editor h2,
+.prose-editor h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.2;
+}
+
+.prose-editor h2 {
+  font-size: 1.25rem;
+}
+
+.prose-editor h3 {
+  font-size: 1rem;
+}
+
+/* More air above a heading than below it, so it reads as belonging to what
+   follows rather than floating between two paragraphs. */
+.prose-editor h2:not(:first-child),
+.prose-editor h3:not(:first-child) {
+  margin-top: 1.25rem;
+}
+
+.prose-editor ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+
+.prose-editor li + li {
+  margin-top: 0.25rem;
+}
+
+/* The same marigold rule the site uses — the one place the accent appears in
+   the admin, and it means the same thing in both. */
+.prose-editor blockquote {
+  border-left: 2px solid var(--color-marigold);
+  padding-left: 0.875rem;
+  font-style: italic;
+  color: var(--color-muted);
+}
+
+.prose-editor a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+
+.prose-editor strong {
+  font-weight: 700;
+}
+
+.prose-editor em {
+  font-style: italic;
+}

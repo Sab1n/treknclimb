@@ -313,13 +313,19 @@ describe('the trip choice — group or private', () => {
     assert.equal(result.departureId, undefined);
   });
 
-  test('naming a trip without choosing is rejected, keyed to tripType', () => {
+  test('naming a trip without a choice is accepted — the form pre-selects one', () => {
+    /*
+     * The choice is pre-selected from how the visitor arrived, so it is never
+     * a required click on the site's only conversion event. A payload without
+     * one is not from our form; it stores as "not recorded" rather than being
+     * refused or guessed.
+     */
     const result = bookingFormSchema.safeParse(
       browserPayload({ tripSlug: 'everest-base-camp-trek' })
     );
 
-    assert.equal(result.success, false);
-    assert.deepEqual(result.success ? null : result.error.issues[0].path, ['tripType']);
+    assert.equal(result.success, true);
+    assert.equal(result.success ? result.data.tripType : 'parse failed', undefined);
   });
 
   test('a group inquiry without a departure is rejected, keyed to departureId', () => {
@@ -368,10 +374,19 @@ describe('the trip choice — group or private', () => {
     );
   });
 
-  test('the endpoint schema applies the same rule', () => {
+  test('the endpoint schema applies the same rules', () => {
+    // No choice: fine.
     assert.equal(
       bookingSubmissionSchema.safeParse(
         browserSubmission({ tripSlug: 'everest-base-camp-trek' })
+      ).success,
+      true
+    );
+
+    // Group with no departure: still refused, on both schemas.
+    assert.equal(
+      bookingSubmissionSchema.safeParse(
+        browserSubmission({ tripSlug: 'everest-base-camp-trek', tripType: 'group' })
       ).success,
       false
     );

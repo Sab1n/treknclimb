@@ -29,6 +29,7 @@ import {
   TRIP_TYPE_LABELS,
 } from '../../../../../models/shared/departures';
 import DepartureNowBadge from '../../../../../components/admin/DepartureNowBadge';
+import DeleteInquiry from '../../../../../components/admin/DeleteInquiry';
 
 const usd = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -380,6 +381,14 @@ export default async function AdminInquiryPage({
               initialNotes={booking.internalNotes ?? ''}
             />
           </section>
+
+          {/*
+            Last on the page, in its own red-bordered block, well away from the
+            status control and the notes — the two things staff touch daily.
+            An erasure request is rare and deliberate, and the control should
+            not be one mis-aimed click from the ones that are not.
+          */}
+          <DeleteInquiry id={bookingId} reference={booking.reference} name={booking.name} />
         </div>
 
         {/* ---------------- provenance ---------------- */}

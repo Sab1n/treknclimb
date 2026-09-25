@@ -21,11 +21,12 @@ import { formatDepartureRange } from '../../lib/bookingDeparture';
  *
  * ## The choice is the visitor's, and it is recorded as one
  *
- * Two real radio buttons registered with React Hook Form as `tripType`. Never
- * set from whether a date is filled in — a visitor can want a private trip on
- * a date, and the office needs to know which they asked for. The only time
- * the form picks for them is a trip with **no** group departures, where group
- * is not a choice at all; the option is still shown, disabled, saying why.
+ * Two real radio buttons registered with React Hook Form as `tripType`, with
+ * one **pre-selected from how the visitor arrived**: group when they came with
+ * a departure, private otherwise. Not required, and not read back off the
+ * date field — the stored type is whichever radio is selected when they press
+ * send, which is either what they arrived asking for or what they changed it
+ * to. A trip with no group departures shows that option disabled, saying why.
  *
  * ## A departure is shown, not re-asked
  *
@@ -115,7 +116,6 @@ export default function TripChoice({
       <fieldset aria-describedby={tripTypeError ? tripTypeErrorId : undefined}>
         <legend id={legendId} className="text-sm font-semibold">
           How would you like to travel?
-          <span className="ml-2 font-normal text-muted">Required</span>
         </legend>
 
         <div className="mt-2 grid gap-2 sm:grid-cols-2">

@@ -171,19 +171,38 @@ export const adminSettingsSchema = z.object({
     .max(12),
 
   /**
-   * The four affiliation registration numbers.
+   * The four affiliations' logos and registration numbers.
    *
    * Addressed by id rather than by position, so a reordered or re-seeded
    * affiliation list cannot write TAAN's number onto the NMA record. The route
    * matches each id against the stored documents and ignores anything it does
    * not recognise.
+   *
+   * `superRefine` for the alt text rather than a field validator, because the
+   * rule is about the *pair*: alt text is required whenever there is a logo to
+   * describe, and a single field cannot see its neighbour. The explicit
+   * `path` is what keys the error to that row's alt input instead of the top
+   * of a very long form. The model enforces the same rule, and that is the one
+   * that actually guarantees it.
    */
   affiliations: z
     .array(
-      z.object({
-        id: z.string().trim().regex(/^[0-9a-f]{24}$/i, 'Bad record reference'),
-        registrationNumber: optionalText(100),
-      })
+      z
+        .object({
+          id: z.string().trim().regex(/^[0-9a-f]{24}$/i, 'Bad record reference'),
+          logo: optionalText(300),
+          logoAlt: optionalText(300),
+          registrationNumber: optionalText(100),
+        })
+        .superRefine((row, ctx) => {
+          if (row.logo && !row.logoAlt) {
+            ctx.addIssue({
+              code: 'custom',
+              path: ['logoAlt'],
+              message: 'The logo needs alt text',
+            });
+          }
+        })
     )
     .max(20),
 });

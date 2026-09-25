@@ -45,7 +45,8 @@ export type UploadCollection =
   | 'testimonials'
   | 'team'
   | 'blog'
-  | 'regions';
+  | 'regions'
+  | 'affiliations';
 
 /** What Cloudinary returns. Only these two fields are used. */
 interface CloudinaryUploadResponse {

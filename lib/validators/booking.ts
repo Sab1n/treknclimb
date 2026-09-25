@@ -109,9 +109,11 @@ const bookingFormFields = z.object({
   /**
    * Group departure or private trip — the visitor's choice, recorded as one.
    *
-   * `''` is the untouched radio group. It is allowed through here and made
-   * required by `tripChoiceRule` below *only when a trip is named*: a general
-   * inquiry has no trip to travel on either way.
+   * `''` is the radio group with nothing chosen. The form always arrives with
+   * one selected — group if the visitor came with a departure, private
+   * otherwise — so this is **not required**: the site's only conversion event
+   * does not gain a mandatory click for an answer the arrival already gave.
+   * Blank still parses, and is stored as "not recorded" rather than guessed.
    *
    * `z.union([...]).transform()` rather than `z.enum().optional()`: the
    * browser sends `''`, not `undefined`, so `''` has to be accepted *and*
@@ -199,15 +201,12 @@ function tripChoiceRule(
 ): void {
   if (!data.tripSlug) return;
 
-  if (!data.tripType) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Choose a group departure or a private trip',
-      path: ['tripType'],
-    });
-    return;
-  }
-
+  /*
+   * A **group** inquiry still needs its departure: "join a group" with no date
+   * says nothing the office can act on, and the form only ever selects group
+   * when it already has one. Private needs nothing, and an unanswered choice
+   * is not an error — see `tripType` above.
+   */
   if (data.tripType === 'group' && !data.departureId) {
     ctx.addIssue({
       code: 'custom',

@@ -244,8 +244,8 @@ export default async function AboutPage() {
                   Registered and recognised by
                 </h2>
                 <p className="mt-2 max-w-prose text-muted">
-                  Each of these bodies keeps a public register. The numbers below
-                  are ours to check.
+                  Each of these bodies keeps a public register. Every logo links
+                  to it.
                 </p>
               </div>
 
@@ -255,14 +255,27 @@ export default async function AboutPage() {
                     key={String(affiliation._id)}
                     className="flex gap-4 rounded-lg border border-hairline bg-white p-5"
                   >
-                    {affiliation.logo && (
+                    {/*
+                      The logo when there is one, the abbreviation set as a
+                      mark when there is not — no logo files have been supplied
+                      yet, and a placeholder block on the page whose job is to
+                      prove the company is real is worse than no image at all.
+                    */}
+                    {affiliation.logo ? (
                       <CloudinaryImage
                         src={affiliation.logo}
-                        alt={affiliation.logoAlt}
+                        alt={affiliation.logoAlt ?? affiliation.name}
                         width={96}
                         height={96}
                         className="size-14 shrink-0 object-contain"
                       />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="grid size-14 shrink-0 place-items-center rounded border border-hairline bg-paper font-mono text-xs font-semibold text-muted"
+                      >
+                        {affiliation.abbreviation}
+                      </span>
                     )}
 
                     <div className="min-w-0">
@@ -282,23 +295,29 @@ export default async function AboutPage() {
                         </a>
                       </h3>
 
-                      <p className="mt-0.5 text-sm text-muted">
-                        {affiliation.abbreviation}
-                      </p>
+                      {/*
+                        Only when there is a logo. Without one the mark to the
+                        left already *is* the abbreviation, and printing it
+                        again under the name puts "DoT" on the card twice.
+                      */}
+                      {affiliation.logo && (
+                        <p className="mt-0.5 text-sm text-muted">
+                          {affiliation.abbreviation}
+                        </p>
+                      )}
 
                       {/*
-                        The registration number is the entire point of the
-                        expanded treatment — and it is omitted, not faked, until
-                        the client supplies it. A placeholder licence number is
-                        a lie of exactly the kind this page exists to disprove.
+                        The registration number renders only when it is filled
+                        in. It used to say "to be confirmed" in its place, which
+                        put four admissions of incompleteness on the page whose
+                        entire job is to prove the company is real — and it said
+                        so to a visitor who had not asked. The membership itself
+                        is the claim; the number is corroboration when it is
+                        there, and nothing when it is not.
                       */}
-                      {affiliation.registrationNumber ? (
+                      {affiliation.registrationNumber && (
                         <p className="mt-2 font-mono text-sm tabular">
                           {affiliation.registrationNumber}
-                        </p>
-                      ) : (
-                        <p className="mt-2 text-xs text-muted">
-                          Registration number to be confirmed.
                         </p>
                       )}
                     </div>

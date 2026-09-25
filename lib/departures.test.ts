@@ -18,6 +18,8 @@ import {
   headlineFromPrice,
   exceptionProblems,
   seasonOverlaps,
+  monthLabel,
+  tripFromPrice,
   blackoutOn,
   currentBlackouts,
   type SeasonView,
@@ -297,4 +299,75 @@ describe('seasonOverlaps', () => {
   test('an incomplete season is not an overlap yet', () => {
     assert.equal(seasonOverlaps([october, { startDate: '2026-10-05', endDate: '', pattern: 'daily', weekdays: [] }]).size, 0);
   });
+});
+
+describe('tripFromPrice — the one "from" price', () => {
+  const TODAY = '2026-09-25';
+
+  /* Stored shape: Dates, as a lean read hands them over. */
+  const october = {
+    _id: '65f0c0ffee0000000000abcd',
+    startDate: new Date('2026-10-01T00:00:00.000Z'),
+    endDate: new Date('2026-10-31T00:00:00.000Z'),
+    pattern: 'daily' as const,
+    weekdays: [],
+    pricePerPerson: 1245,
+    exceptions: [],
+  };
+
+  const trip = {
+    price: 1295,
+    durationDays: 14,
+    groupPricing: [{ pricePerPerson: 1295 }, { pricePerPerson: 1395 }],
+    departureSeasons: [october],
+  };
+
+  test('a cheaper departure beats the cheapest private tier', () => {
+    assert.equal(tripFromPrice(trip, TODAY), 1245);
+  });
+
+  test('with no departures at all it is the cheapest tier', () => {
+    assert.equal(tripFromPrice({ ...trip, departureSeasons: [] }, TODAY), 1295);
+  });
+
+  test('with no tiers either, the flat price', () => {
+    assert.equal(
+      tripFromPrice({ ...trip, departureSeasons: [], groupPricing: [] }, TODAY),
+      1295
+    );
+  });
+
+  test('a departure nobody can join does not set the price', () => {
+    const allFull = {
+      ...october,
+      exceptions: seasonDates({
+        startDate: '2026-10-01',
+        endDate: '2026-10-31',
+        pattern: 'daily',
+        weekdays: [],
+      }).map((date) => ({ date: new Date(`${date}T00:00:00.000Z`), status: 'full' as const, pricePerPerson: null })),
+    };
+
+    assert.equal(tripFromPrice({ ...trip, departureSeasons: [allFull] }, TODAY), 1295);
+  });
+
+  test('a season that has finished does not set it either', () => {
+    assert.equal(tripFromPrice(trip, '2026-12-01'), 1295);
+  });
+
+  test('a missing departureSeasons key — a lean read of an old trip — is safe', () => {
+    assert.equal(tripFromPrice({ price: 900, durationDays: 7 }, TODAY), 900);
+  });
+});
+
+describe('monthLabel — the line above the calendar', () => {
+  test('names the month, and drops the year when it is this one', () => {
+    assert.equal(monthLabel('2026-09', '2026-09-26'), 'September');
+    assert.equal(monthLabel('2026-12', '2026-09-26'), 'December');
+  });
+
+  test('keeps the year once the calendar has paged into the next one', () => {
+    assert.equal(monthLabel('2027-03', '2026-09-26'), 'March 2027');
+  });
+
 });

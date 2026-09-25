@@ -364,12 +364,49 @@ export function departureOnDate(
   return best;
 }
 
+const monthNameFormatter = new Intl.DateTimeFormat('en-GB', {
+  month: 'long',
+  timeZone: 'UTC',
+});
+
+const monthYearFormatter = new Intl.DateTimeFormat('en-GB', {
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+/**
+ * A `YYYY-MM` as a month name — "September", or "September 2027" once the
+ * year stops being the obvious one.
+ *
+ * The line above the calendar used to read "this month", which is true of the
+ * grid and ambiguous beside the rail's headline "from" price: two numbers on
+ * one screen, one of them labelled by a phrase that does not say which month
+ * it means. Naming the month removes the reading where they contradict each
+ * other.
+ *
+ * The year is added only when it differs from `today`'s — "September 2026
+ * departures" in September 2026 is noise, and leaving it off in December when
+ * the grid is showing next March is worse.
+ *
+ * `timeZone: 'UTC'`, as everywhere else here: these are calendar dates stored
+ * as UTC midnights, and read back in any other zone a month boundary moves.
+ */
+export function monthLabel(month: string, today: string): string {
+  const date = fromIsoDate(`${month}-01`);
+
+  return month.slice(0, 4) === today.slice(0, 4)
+    ? monthNameFormatter.format(date)
+    : monthYearFormatter.format(date);
+}
+
 /**
  * The cheapest **available** departure's price, or null when none is
  * available. Full and closed departures are real but cannot be joined, so
  * their price is not a price anyone can pay.
  *
- * Pass a month (`YYYY-MM`) to restrict it — the "from $X this month" line.
+ * Pass a month (`YYYY-MM`) to restrict it — the "September departures from
+ * $X" line above the calendar.
  */
 export function groupFromPrice(departures: Departure[], month?: string): number | null {
   const prices = departures
@@ -397,6 +434,53 @@ export function privateFromPrice(trip: {
 /** The rail's headline "from": the lower of the two paths. */
 export function headlineFromPrice(groupFrom: number | null, privateFrom: number): number {
   return groupFrom === null ? privateFrom : Math.min(groupFrom, privateFrom);
+}
+
+/**
+ * Only what a "from" price is computed from. Structural, so this file still
+ * imports nothing from `models/`: a lean read, a populated document and a
+ * hydrated one all fit.
+ *
+ * `departureSeasons` and `groupPricing` are optional because a `.lean()` read
+ * does not apply schema defaults — a trip written before either field existed
+ * comes back without the key.
+ */
+export interface PricedTrip {
+  price: number;
+  durationDays: number;
+  groupPricing?: { pricePerPerson: number }[];
+  departureSeasons?: StoredSeason[];
+}
+
+/**
+ * **The** "from" price for a trip — the single number every surface shows.
+ *
+ * The lower of the cheapest upcoming *available* departure and the cheapest
+ * private tier. Cards, the /trips listing and its sort, the trip page
+ * headline, the rail and the `Offer` in structured data all call this, so a
+ * visitor comparing a card against the page it links to can never see two
+ * figures for one trip. Before this existed the card read the flat price and
+ * the page read the departures: Everest Base Camp advertised $1,295 on the
+ * card and $1,245 on its own page.
+ *
+ * `today` is Pokhara's date, because "upcoming" is the company's calendar, not
+ * the reader's. It is a parameter rather than read here so that a page and
+ * everything on it price against one instant.
+ *
+ * The flat `price` has not stopped mattering: it is still the anchor the admin
+ * maintains, still required to equal the cheapest tier, and still what this
+ * falls back to for a trip with no tiers and no departures.
+ */
+export function tripFromPrice(trip: PricedTrip, today: string): number {
+  const seasons = (trip.departureSeasons ?? []).map(toSeasonView);
+  const groupFrom = groupFromPrice(
+    generateDepartures(seasons, trip.durationDays, today)
+  );
+
+  return headlineFromPrice(
+    groupFrom,
+    privateFromPrice({ price: trip.price, groupPricing: trip.groupPricing ?? [] })
+  );
 }
 
 /* ------------------------------------------------------------------ *

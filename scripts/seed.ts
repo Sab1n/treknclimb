@@ -155,40 +155,37 @@ const nepalActivities: Omit<Seed<IActivity>, 'destination'>[] = [
 ];
 
 /**
- * The four bodies named in CLAUDE.md. Registration numbers are deliberately
- * absent — the real ones have to come from the client, and a placeholder
- * licence number on a trust asset is worse than a blank one.
+ * The four bodies named in CLAUDE.md.
+ *
+ * Registration numbers **and logos** are deliberately absent. The real ones
+ * have to come from the client, and a placeholder on a trust asset is worse
+ * than a blank: a licence number nobody can check is a lie, and a public ID
+ * pointing at a file that was never uploaded renders as a grey box on the page
+ * whose job is to prove the company is real. Both fall back to the
+ * abbreviation or to nothing, and both are filled in from the Settings screen.
  */
 const affiliations: Seed<IAffiliation>[] = [
   {
     name: 'Department of Tourism',
     abbreviation: 'DoT',
-    logo: 'treknclimb/affiliations/dot',
-    logoAlt: 'Department of Tourism, Government of Nepal',
     url: 'https://tourism.gov.np',
     displayOrder: 1,
   },
   {
     name: 'Nepal Tourism Board',
     abbreviation: 'NTB',
-    logo: 'treknclimb/affiliations/ntb',
-    logoAlt: 'Nepal Tourism Board',
     url: 'https://ntb.gov.np',
     displayOrder: 2,
   },
   {
     name: 'Trekking Agencies’ Association of Nepal, Pokhara',
     abbreviation: 'TAAN',
-    logo: 'treknclimb/affiliations/taan',
-    logoAlt: 'Trekking Agencies’ Association of Nepal, Pokhara chapter',
     url: 'https://taanpokhara.org',
     displayOrder: 3,
   },
   {
     name: 'Nepal Mountaineering Association',
     abbreviation: 'NMA',
-    logo: 'treknclimb/affiliations/nma',
-    logoAlt: 'Nepal Mountaineering Association',
     url: 'https://nepalmountaineering.org',
     displayOrder: 4,
   },

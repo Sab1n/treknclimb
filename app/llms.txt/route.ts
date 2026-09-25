@@ -6,6 +6,7 @@ import Trip from '../../models/Trip';
 import { getSiteSettings } from '../../lib/queries/settings';
 import { getBlogCategories } from '../../lib/queries/blog';
 import { SITE_URL } from '../../lib/jsonLd';
+import { nepalToday, tripFromPrice, type PricedTrip } from '../../lib/departures';
 import {
   destinationPath,
   activityPath,
@@ -104,28 +105,38 @@ export async function GET(): Promise<Response> {
       getBlogCategories(),
 
       /*
-       * One `$group` over every published trip: the count and the price range.
+       * Every published trip's pricing inputs, for the count and the range.
        * Both are facts a model asking "what does this company sell and roughly
        * what does it cost" wants, and neither is authored anywhere — deriving
        * them is the only way they stay true.
+       *
+       * Read rather than aggregated with `$min`/`$max` on `price`, because
+       * the figure quoted here has to be the same "from" price the cards and
+       * the trip pages show, and that one is derived from the departure
+       * seasons — which is arithmetic Mongo would have to be taught twice.
+       * A few dozen small documents; `tripFromPrice` does the rest in JS.
        */
-      Trip.aggregate<{ count: number; minPrice: number; maxPrice: number }>([
-        { $match: { status: 'published' } },
-        {
-          $group: {
-            _id: null,
-            count: { $sum: 1 },
-            minPrice: { $min: '$price' },
-            maxPrice: { $max: '$price' },
-          },
-        },
-      ]),
+      Trip.find({ status: 'published' })
+        .select('price durationDays groupPricing departureSeasons')
+        .lean<PricedTrip[]>()
+        .exec(),
     ]);
 
   const name =
     settings?.tradingName || settings?.legalName || 'Trek & Climb Adventure';
 
-  const stats = tripStats[0];
+  /*
+   * One "today" for the whole file, and the same Pokhara date the rest of the
+   * site prices against.
+   */
+  const today = nepalToday();
+  const fromPrices = tripStats.map((trip) => tripFromPrice(trip, today));
+
+  const stats = {
+    count: tripStats.length,
+    minPrice: fromPrices.length > 0 ? Math.min(...fromPrices) : null,
+    maxPrice: fromPrices.length > 0 ? Math.max(...fromPrices) : null,
+  };
 
   const lines: string[] = [];
 
@@ -260,7 +271,7 @@ export async function GET(): Promise<Response> {
    * The catalogue
    * ---------------------------------------------------------------- */
 
-  if (stats?.count) {
+  if (stats.count) {
     const range = priceRange(stats.minPrice, stats.maxPrice);
 
     lines.push(

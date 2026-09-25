@@ -57,9 +57,15 @@ function subscribeToNothing(): () => void {
  * The trip, group-or-private, and the departure sit at the top. A visitor who
  * pressed "Continue with 13 October" on the trip page sees that departure —
  * dates, length, price per person — before anything is asked of them, with a
- * way to change it or switch to a private trip (`TripChoice`). Group or
- * private is a required radio whenever a trip is named: recorded as the
- * visitor's choice, never guessed from whether a date was filled in.
+ * way to change it or switch to a private trip (`TripChoice`).
+ *
+ * **The choice is pre-selected from how they arrived, not demanded.** Arriving
+ * with a departure selects group; arriving from a trip page with no date, or
+ * choosing a trip here, selects private, which is what "no date" means. Either
+ * can be changed in one click, and the office still records what the inquiry
+ * actually was. Making it a required radio cost a mandatory click on the
+ * site's only conversion event to learn something the arrival had already
+ * said.
  *
  * ## Turnstile waits, and never asks for a reload
  *
@@ -180,7 +186,11 @@ export default function BookingForm({
    * it and it is still available; otherwise group is still selected — that was
    * the visitor's choice — the calendar opens, and `TripChoice` says the date
    * has gone. A bare `?date=` is only ever a preferred date: it does not say
-   * group or private, and the form does not guess.
+   * group or private on its own.
+   *
+   * With a trip and nothing else, the choice lands on **private**: they came
+   * from a trip page without picking a date, which is what a private trip is.
+   * One click moves it.
    */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -206,7 +216,8 @@ export default function BookingForm({
       const found = departures.find((candidate) => candidate.id === departure);
 
       if (found?.status === 'available') setValue('departureId', found.id);
-    } else if (params.get('type') === 'private') {
+    } else {
+      // A trip and no date — from the rail's private option or its plain CTA.
       setValue('tripType', 'private');
     }
   }, [trips, setValue]);
@@ -223,14 +234,15 @@ export default function BookingForm({
       ? blackoutOn(preferredDate, trip.rail.blackoutPeriods)
       : null;
 
-  /** A new trip is a new question: its departures and its prices differ. */
+  /**
+   * A new trip is a new question: its departures and its prices differ, so the
+   * departure is cleared. The choice lands on private — no date is chosen for
+   * the new trip, which is exactly the private case — and the group option is
+   * one click away with its own "from" price on it.
+   */
   function resetChoiceFor(slug: string) {
-    const next = trips.find((candidate) => candidate.slug === slug);
-    const hasGroup =
-      !!next && generateDepartures(next.rail.seasons, next.rail.durationDays, today).length > 0;
-
     setValue('departureId', '');
-    setValue('tripType', next && !hasGroup ? 'private' : '');
+    setValue('tripType', slug ? 'private' : '');
     setPickerOpen(false);
   }
 
